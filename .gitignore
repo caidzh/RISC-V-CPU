@@ -1,0 +1,14 @@
+fpga/
+script/
+testcase/
+testspace/
+Makefile
+
+testspace/*
+!.keep
+*.o
+*.vcd
+*.elf
+*.dump
+*.data
+fpga/fpga
