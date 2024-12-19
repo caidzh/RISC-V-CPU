@@ -1,6 +1,8 @@
 // RISCV32 CPU top module
 // port modification allowed for debugging purposes
 
+`include "const.v"
+
 module cpu(
   input  wire                 clk_in,			// system clock signal
   input  wire                 rst_in,			// reset signal
