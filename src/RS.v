@@ -11,7 +11,7 @@ module RS{
     //out rs_full determine stall
     output reg rs_full,
 
-    //IFetch update RS
+    //decoder update RS
     input wire inst_valid,
     input wire [`OPCODE_WID] inst_opcode,
     input wire [`FUNC3_WID] inst_func3,

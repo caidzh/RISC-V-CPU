@@ -38,28 +38,387 @@ module cpu(
 // - 0x30004 read: read clocks passed since cpu starts (in dword, 4 bytes)
 // - 0x30004 write: indicates program stop (will output '\0' through uart tx)
 
-// always @(posedge clk_in)
-//   begin
-//     if (rst_in)
-//       begin
-      
-//       end
-//     else if (!rdy_in)
-//       begin
-      
-//       end
-//     else
-//       begin
-      
-//       end
-//   end
+//ALU output
+wire ALU_out_is_data;
+wire [`DATA_WID] ALU_out_data;
+wire ALU_out_is_jump;
+wire [`ADDR_WID] ALU_out_pc;
+wire [`ROB_ID_WID] ALU_out_rob_target;
 
+//decoder output
+wire decoder_valid;
+wire [`OPCODE_WID] decoder_opcode;
+wire [`FUNC3_WID] decoder_func3;
+wire decoder_func1;
+wire decoder_rs1_valid;
+wire [`REG_ID_WID] decoder_rs1;
+wire decoder_rs1_depend_rob;
+wire [`ROB_ID_WID] decoder_rs1_rob_id;
+wire [`DATA_WID] decoder_rs1_data;
+wire decoder_rs2_valid;
+wire [`REG_ID_WID] decoder_rs2;
+wire decoder_rs2_depend_rob;
+wire [`ROB_ID_WID] decoder_rs2_rob_id;
+wire [`DATA_WID] decoder_rs2_data;
+wire decoder_rd_valid;
+wire [`REG_ID_WID] decoder_rd;
+wire [`ROB_ID_WID] decoder_rd_rob_id;
+wire [`DATA_WID] decoder_imm;
+wire [`DATA_WID] decoder_off;
+wire [`ADDR_WID] decoder_pc;
+wire decoder_is_predict_jump;
+wire decoder_is_store;
+wire decoder_can_commit;
+wire decoder_is_call_rob_rs1;
+wire [`ROB_ID_WID] decoder_call_rob_rs1_rob_id;
+wire decoder_is_call_rob_rs2;
+wire [`ROB_ID_WID] decoder_call_rob_rs2_rob_id;
+wire decoder_is_call_regfile_rs1;
+wire [`REG_ID_WID] decoder_call_regfile_rs1;
+wire decoder_is_call_regfile_rs2;
+wire [`REG_ID_WID] decoder_call_regfile_rs2;
+wire decoder_to_rs;
+wire decoder_to_lsb;
+
+//ifetch output
+wire ifetch_out_inst_valid;
+wire [`INST_WID] ifetch_out_inst;
+wire ifetch_out_inst_predict_jump;
+wire [`ADDR_WID] ifetch_out_inst_pc;
+wire ifetch_mem_find_valid;
+wire [`ADDR_WID] ifetch_mem_find_addr;
+
+//LSB output
+wire lsb_full;
+wire LSB_call_valid;
+wire LSB_call_is_store;
+wire [`ADDR_WID] LSB_call_addr;
+wire [`ST_LEN_WID] LSB_call_len;
+wire [`DATA_WID] LSB_call_data;
+wire LSB_out_valid;
+wire [`ROB_ID_WID] LSB_out_rob_id;
+wire [`DATA_WID] LSB_out_data;
+
+//memctrl output
+wire memctrl_respond_valid;
+wire [`DATA_WID] memctrl_respond_data;
+wire memctrl_mem_data_valid;
+wire [`CACHE_BLK_SZ_WID] memctrl_mem_data;
+
+//regfile output
+wire regfile_rs1_busy;
+wire [`DATA_WID] regfile_answer_rs1_data;
+wire [`ROB_ID_WID] regfile_rs1_rob_id;
+wire regfile_rs2_busy;
+wire [`DATA_WID] regfile_answer_rs2_data;
+wire [`ROB_ID_WID] regfile_rs2_rob_id;
+
+//ROB output
 wire rollback;
+wire rob_full;
+wire ROB_pc_valid;
+wire [`ADDR_WID] ROB_pc;
+wire ROB_is_branch;
+wire ROB_is_jump;
+wire [`ADDR_WID] ROB_jump_pc;
+wire ROB_commit_reg_valid;
+wire [`REG_ID_WID] ROB_commit_reg_rd;
+wire [`DATA_WID] ROB_commit_reg_data; 
+wire [`ROB_ID_WID] ROB_commit_reg_rob_id;
+wire ROB_commit_lsb_valid;
+wire [`ROB_ID_WID] ROB_commit_lsb_rob_id;
+wire [`DATA_WID] ROB_commit_lsb_data;
+wire ROB_is_rs1_depend;
+wire [`DATA_WID] ROB_rs1_data;
+wire ROB_is_rs2_depend;
+wire [`DATA_WID] ROB_rs2_data;
+wire [`ROB_POS_WID] ROB_rd_rob_id;
 
-wire out_is_data;
-wire [`DATA_WID] out_data;
-wire out_is_jump;
-wire [`ADDR_WID] out_pc;
-wire [`ROB_ID_WID] out_rob_target;
+//RS output
+wire rs_full;
+wire RS_exe_valid;
+wire [`OPCODE_WID] RS_exe_opcode;
+wire [`FUNC3_WID] RS_exe_func3;
+wire RS_exe_func1;
+wire [`DATA_WID] RS_exe_data1;
+wire [`DATA_WID] RS_exe_data2;
+wire [`DATA_WID] RS_exe_imm;
+wire [`DATA_WID] RS_exe_off;
+wire [`ADDR_WID] RS_exe_pc;
+wire [`ROB_ID_WID] RS_exe_rob_target;
+
+ALU t_ALU(
+  .clk(clk_in),
+  .rdy(rdy_in),
+  .rst(rst_in),
+  .rollback(rollback),
+  .inst_valid(RS_exe_valid),
+  .opcode(RS_exe_opcode),
+  .func3(RS_exe_func3),
+  .func1(RS_exe_func1),
+  .data1(RS_exe_data1),
+  .data2(RS_exe_data2),
+  .imm(RS_exe_imm),
+  .off(RS_exe_off),
+  .pc(RS_exe_pc),
+  .rob_target(RS_exe_rob_target),
+  .out_is_data(ALU_out_is_data),
+  .out_data(ALU_out_data),
+  .out_is_jump(ALU_out_is_jump),
+  .out_pc(ALU_out_pc),
+  .out_rob_target(out_rob_target)
+);
+
+decoder t_decoder(
+  .rst(rst_in),
+  .rdy(rdy_in),
+  .rollback(rollback),
+  .inst_valid(ifetch_out_inst_valid),
+  .inst(ifetch_out_inst),
+  .inst_predict_jump(ifetch_out_inst_predict_jump),
+  .inst_pc(ifetch_out_inst_pc),
+  .valid(decoder_valid),
+  .opcode(decoder_opcode),
+  .func3(decoder_func3),
+  .func1(decoder_func1),
+  .rs1_valid(decoder_rs1_valid),
+  .rs1(decoder_rs1),
+  .rs1_depend_rob(decoder_rs1_depend_rob),
+  .rs1_rob_id(decoder_rs1_rob_id),
+  .rs1_data(decoder_rs1_data),
+  .rs2_valid(decoder_rs2_valid),
+  .rs2(decoder_rs2),
+  .rs2_depend_rob(decoder_rs2_depend_rob),
+  .rs2_rob_id(decoder_rs2_rob_id),
+  .rs2_data(decoder_rs2_data),
+  .rd_valid(decoder_rd_valid),
+  .rd(decoder_rd),
+  .rd_rob_id(decoder_rd_rob_id),
+  .imm(decoder_imm),
+  .off(decoder_off),
+  .pc(decoder_pc),
+  .is_predict_jump(decoder_is_predict_jump),
+  .is_store(decoder_is_store),
+  .can_commit(decoder_can_commit),
+  .alu_data_valid(ALU_out_is_data),
+  .alu_data(ALU_out_data),
+  .alu_rob_id(ALU_out_rob_target),
+  .lsb_data_valid(LSB_out_valid),
+  .lsb_data(LSB_out_data),
+  .lsb_rob_id(LSB_out_rob_id),
+  .is_call_rob_rs1(decoder_is_call_rob_rs1),
+  .call_rob_rs1_rob_id(decoder_call_rob_rs1_rob_id),
+  .is_call_rob_rs2(decoder_is_call_rob_rs2),
+  .call_rob_rs2_rob_id(decoder_call_rob_rs2_rob_id),
+  .rob_is_rs1_depend(ROB_is_rs1_depend),
+  .rob_rs1_data(ROB_rs1_data),
+  .rob_is_rs2_depend(ROB_is_rs2_depend),
+  .rob_rs2_data(ROB_rs2_data),
+  .rob_rd_rob_id(ROB_rd_rob_id),
+  .is_call_regfile_rs1(decoder_is_call_regfile_rs1),
+  .call_regfile_rs1(decoder_call_regfile_rs1),
+  .is_call_regfile_rs2(decoder_is_call_regfile_rs2),
+  .call_regfile_rs2(decoder_call_regfile_rs2),
+  .regfile_rs1_data(regfile_answer_rs1_data),
+  .regfile_rs1_busy(regfile_rs1_busy),
+  .regfile_rs1_rob_id(regfile_rs1_rob_id),
+  .regfile_rs2_data(regfile_answer_rs2_data),
+  .regfile_rs2_busy(regfile_rs2_busy),
+  .regfile_rs2_rob_id(regfile_rs2_rob_id),
+  .to_rs(decoder_to_rs),
+  .to_lsb(decoder_to_lsb)
+);
+
+ifetch t_ifetch(
+  .clk(clk_in),
+  .rst(rst_in),
+  .rdy(rdy_in),
+  .rollback(rollback),
+  .rs_full(rs_full),
+  .rob_full(rob_full),
+  .lsb_full(lsb_full),
+  .pc_valid(ROB_pc_valid),
+  .pc(ROB_pc),
+  .is_branch(ROB_is_branch),
+  .is_jump(ROB_is_jump),
+  .jump_pc(ROB_jump_pc),
+  .out_inst_valid(ifetch_out_inst_valid),
+  .out_inst(ifetch_out_inst),
+  .out_inst_predict_jump(ifetch_out_inst_predict_jump),
+  .out_inst_pc(ifetch_out_inst_pc),
+  .mem_data_valid(memctrl_mem_data_valid),
+  .mem_data(memctrl_mem_data),
+  .mem_find_valid(ifetch_mem_find_valid),
+  .mem_find_addr(ifetch_mem_find_addr)
+);
+
+LSB t_LSB(
+  .clk(clk_in),
+  .rst(rst_in),
+  .rdy(rdy_in),
+  .rollback(rollback),
+  .lsb_full(lsb_full),
+  .inst_valid(decoder_to_lsb),
+  .opcode(decoder_opcode),
+  .is_store(decoder_is_store),
+  .func3(decoder_func3),
+  .rs1_busy(decoder_rs1_depend_rob),
+  .rs1_id(decoder_rs1),
+  .rs1_data(decoder_rs1_data),
+  .rs1_rob_id(decoder_rs1_rob_id),
+  .rs2_busy(decoder_rs2_depend_rob),
+  .rs2_id(decoder_rs2),
+  .rs2_data(decoder_rs2_data),
+  .rs2_rob_id(decoder_rs2_rob_id),
+  .imm(decoder_imm),
+  .rd_id(decoder_rd),
+  .rob_target(decoder_rd_rob_id),
+  .alu_valid(ALU_out_is_data),
+  .alu_rob_id(ALU_out_rob_target),
+  .alu_data(ALU_out_data),
+  .lsb_valid(LSB_out_valid),
+  .lsb_rob_id(LSB_out_rob_id),
+  .lsb_data(LSB_out_data),
+  .commit_valid(ROB_commit_lsb_valid),
+  .commit_rob_id(ROB_commit_lsb_rob_id),
+  .commit_data(ROB_commit_lsb_data),
+  .call_valid(LSB_call_valid),
+  .call_is_store(LSB_call_is_store),
+  .call_addr(LSB_call_addr),
+  .call_len(LSB_call_len),
+  .call_data(LSB_call_data),
+  .respond_valid(memctrl_respond_valid),
+  .respond_data(memctrl_respond_data),
+  .out_valid(LSB_out_valid),
+  .out_rob_id(LSB_out_rob_id),
+  .out_data(LSB_out_data)
+);
+
+memctrl t_memctrl(
+  .clk(clk_in),
+  .rst(rst_in),
+  .rdy(rdy_in),
+  .rollback(rollback),
+  .ret_data(mem_din),
+  .call_addr(mem_a),
+  .is_write(mem_wr),
+  .write_data(mem_dout),
+  .lsb_call_valid(LSB_call_valid),
+  .lsb_call_is_store(LSB_call_is_store),
+  .lsb_call_addr(LSB_call_addr),
+  .lsb_call_len(LSB_call_len),
+  .lsb_call_data(LSB_call_data),
+  .respond_valid(memctrl_respond_valid),
+  .respond_data(memctrl_respond_data),
+  .mem_find_valid(ifetch_mem_find_valid),
+  .mem_find_addr(ifetch_mem_find_addr),
+  .mem_data_valid(memctrl_mem_data_valid),
+  .mem_data(memctrl_mem_data)
+);
+
+regfile t_regfile(
+  .clk(clk_in),
+  .rst(rst_in),
+  .rdy(rdy_in),
+  .rollback(rollback),
+  .is_call_rs1(decoder_is_call_regfile_rs1),
+  .call_rs1(decoder_call_regfile_rs1),
+  .is_call_rs2(decoder_is_call_regfile_rs2),
+  .call_rs2(decoder_call_regfile_rs2),
+  .rs1_busy(regfile_rs1_busy),
+  .answer_rs1_data(regfile_answer_rs1_data),
+  .rs1_rob_id(regfile_rs1_rob_id),
+  .rs2_busy(regfile_rs2_busy),
+  .answer_rs2_data(regfile_answer_rs2_data),
+  .rs2_rob_id(regfile_rs2_rob_id),
+  .chg_dependency(decoder_rd_valid),//maybe wrong
+  .chg_rs1(decoder_rd),//maybe wrong
+  .dependent_rob_id(decoder_rd_rob_id),//maybe wrong
+  .is_commit(ROB_commit_reg_valid),
+  .commit_rd(ROB_commit_reg_rd),
+  .commit_data(ROB_commit_reg_data),
+  .commit_rob_id(ROB_commit_reg_rob_id)
+);
+
+ROB t_ROB(
+  .clk(clk_in),
+  .rst(rst_in),
+  .rdy(rdy_in),
+  .rollback(rollback),
+  .rob_full(rob_full),
+  .inst_valid(decoder_valid),
+  .inst_opcode(decoder_opcode),
+  .inst_rd(decoder_rd),
+  .inst_pc(decoder_pc),
+  .inst_predict_is_jump(decoder_is_predict_jump),
+  .inst_can_commit(decoder_can_commit),
+  .lsb_chg(LSB_out_valid),
+  .lsb_rob_id(LSB_out_rob_id),
+  .lsb_rob_data(LSB_out_data),
+  .alu_chg(ALU_out_is_data),
+  .alu_rob_id(ALU_out_rob_target),
+  .alu_rob_data(ALU_out_data),
+  .alu_is_jump(ALU_out_is_jump),
+  .alu_jump_pc(ALU_out_pc),
+  .is_call_rs1(decoder_is_call_rob_rs1),
+  .call_rs1_rob_id(decoder_call_rob_rs1_rob_id),
+  .is_call_rs2(decoder_is_call_rob_rs2),
+  .call_rs2_rob_id(decoder_call_rob_rs2_rob_id),
+  .pc_valid(ROB_pc_valid),
+  .pc(ROB_pc),
+  .is_branch(ROB_is_branch),
+  .is_jump(ROB_is_jump),
+  .jump_pc(ROB_jump_pc),
+  .commit_reg_valid(ROB_commit_reg_valid),
+  .commit_reg_rd(ROB_commit_reg_rd),
+  .commit_reg_data(ROB_commit_reg_data),
+  .commit_reg_rob_id(ROB_commit_reg_rob_id),
+  .commit_lsb_valid(ROB_commit_lsb_valid),
+  .commit_lsb_rob_id(ROB_commit_lsb_rob_id),
+  .commit_lsb_data(ROB_commit_lsb_data),
+  .is_rs1_depend(ROB_is_rs1_depend),
+  .rs1_data(ROB_rs1_data),
+  .is_rs2_depend(ROB_is_rs2_depend),
+  .rs2_data(ROB_rs2_data),
+  .rd_rob_id(ROB_rd_rob_id)
+);
+
+RS t_RS(
+  .clk(clk_in),
+  .rdy(rdy_in),
+  .rst(rst_in),
+  .rollback(rollback),
+  .rs_full(rs_full),
+  .inst_valid(decoder_to_rs),
+  .inst_opcode(decoder_opcode),
+  .inst_func3(decoder_func3),
+  .inst_func1(decoder_func1),
+  .inst_reg1_valid(decoder_rs1_valid),
+  .inst_reg1_data(decoder_rs1_data),
+  .inst_reg1_rob_id(decoder_rs1_rob_id),
+  .inst_reg2_valid(decoder_rs2_valid),
+  .inst_reg2_data(decoder_rs2_data),
+  .inst_reg2_rob_id(decoder_rs2_rob_id),
+  .inst_rd_rob_id(decoder_rd_rob_id),
+  .inst_imm(decoder_imm),
+  .inst_off(decoder_off),
+  .inst_pc(decoder_pc),
+  .alu_valid(ALU_out_is_data),
+  .alu_rob_id(ALU_out_rob_target),
+  .alu_data(ALU_out_data),
+  .lsb_valid(LSB_out_valid),
+  .lsb_rob_id(LSB_out_rob_id),
+  .lsb_data(LSB_out_data),
+  .exe_valid(RS_exe_valid),
+  .exe_opcode(RS_exe_opcode),
+  .exe_func3(RS_exe_func3),
+  .exe_func1(RS_exe_func1),
+  .exe_data1(RS_exe_data1),
+  .exe_data2(RS_exe_data2),
+  .exe_imm(RS_exe_imm),
+  .exe_off(RS_exe_off),
+  .exe_pc(RS_exe_pc),
+  .exe_rob_target(RS_exe_rob_target)
+);
 
 endmodule

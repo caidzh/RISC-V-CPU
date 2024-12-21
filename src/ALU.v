@@ -31,7 +31,6 @@ module ALU{
     //暂存
     reg [`DATA_WID] data;
     reg is_jump;
-    //
 
     always @(*)begin
         if(opcode==`OPCODE_ARITH || opcode==`OPCODE_ARITHI)begin

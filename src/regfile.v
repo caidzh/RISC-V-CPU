@@ -9,27 +9,29 @@ module RegFile{
     input wire rollback,
 
     //decoder call information of register
-    input wire [`REG_ID_WID] call_rs1;
-    input wire [`REG_ID_WID] call_rs2;
+    input wire is_call_rs1,
+    input wire [`REG_ID_WID] call_rs1,
+    input wire is_call_rs2,
+    input wire [`REG_ID_WID] call_rs2,
 
     //answer decoder
-    output wire rs1_busy;
-    output wire [`DATA_WID] answer_rs1_data;
-    output wire [`ROB_ID_WID] rs1_rob_id;
-    output wire rs2_busy;
-    output wire [`DATA_WID] answer_rs2_data;
-    output wire [`ROB_ID_WID] rs2_rob_id;
+    output wire rs1_busy,
+    output wire [`DATA_WID] answer_rs1_data,
+    output wire [`ROB_ID_WID] rs1_rob_id,
+    output wire rs2_busy,
+    output wire [`DATA_WID] answer_rs2_data,
+    output wire [`ROB_ID_WID] rs2_rob_id,
 
     //decoder update register dependecies
-    input wire chg_dependency;
-    input wire [`REG_ID_WID] chg_rs1;
-    input wire [`ROB_ID_WID] dependent_rob_id;
+    input wire chg_dependency,
+    input wire [`REG_ID_WID] chg_rs1,
+    input wire [`ROB_ID_WID] dependent_rob_id,
 
     //ROB commit update regfile
-    input wire is_commit;
-    input wire[`REG_ID_WID] commit_rd;
-    input wire[`DATA_WID] commit_data;
-    input wire[`ROB_ID_WID] commit_rob_id;
+    input wire is_commit,
+    input wire[`REG_ID_WID] commit_rd,
+    input wire[`DATA_WID] commit_data,
+    input wire[`ROB_ID_WID] commit_rob_id
 };
     reg [`DATA_WID] reg_data[`REG_SZ-1:0];
     reg [`ROB_ID_WID] reg_rob_id[`REG_SZ-1:0];
