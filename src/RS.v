@@ -16,10 +16,10 @@ module RS{
     input wire [`OPCODE_WID] inst_opcode,
     input wire [`FUNC3_WID] inst_func3,
     input wire inst_func1,
-    input wire inst_reg1_valid;
+    input wire inst_reg1_valid,
     input wire [`DATA_WID] inst_reg1_data,
     input wire [`ROB_ID_WID] inst_reg1_rob_id,
-    input wire inst_reg2_valid;
+    input wire inst_reg2_valid,
     input wire [`DATA_WID] inst_reg2_data,
     input wire [`ROB_ID_WID] inst_reg2_rob_id,
     input wire [`ROB_ID_WID] inst_rd_rob_id,
@@ -47,8 +47,8 @@ module RS{
     output reg [`DATA_WID] exe_imm,
     output reg [`DATA_WID] exe_off,
     output reg [`ADDR_WID] exe_pc,
-    output reg [`ROB_ID_WID] exe_rob_target,
-}
+    output reg [`ROB_ID_WID] exe_rob_target
+};
     //Reservation Station
     reg busy[`RS_SZ-1:0];
     reg [`OPCODE_WID] rs_inst_opcode[`RS_SZ-1:0];

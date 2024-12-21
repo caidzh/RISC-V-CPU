@@ -2,6 +2,9 @@
 `define const 
 
 // CPU
+// MAXLEN
+`define CACHE_BLK_MAXLEN 511
+
 // SZ
 `define RS_SZ 16
 `define ROB_SZ 8
@@ -22,11 +25,13 @@
 `define ST_LEN_WID 2:0
 `define BLK_NUM_WID 3:0
 `define BLK_DATA_WID 5:0
-`define IFETCH_STATUS_WID 2:0
+`define MEMCTRL_STATUS_WID 1:0
 `define CACHE_TAG_WID 21:0
 `define CACHE_INDEX_WID 3:0
 `define BP_INDEX_WID 7:0
 `define CACHE_BLK_SZ_WID 8:0
+`define CACHE_OFF_WID 3:0
+`define MEMORY_RW_WID 7:0
 
 // RANGE
 `define CACHE_TAG_RANGE 31:10
@@ -42,6 +47,7 @@
 `define FUNC3_RANGE 14:12
 `define RS1_RANGE 19:15
 `define RS2_RANGE 24:20
+`define FUNC1_RANGE 30
 
 `define OPCODE_L      7'b0000011
 `define OPCODE_S      7'b0100011

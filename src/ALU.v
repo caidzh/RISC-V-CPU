@@ -25,7 +25,7 @@ module ALU{
     output reg out_is_jump,
     output reg [`ADDR_WID] out_pc,
     output reg [`ROB_ID_WID] out_rob_target
-}
+};
     wire [`DATA_WID] operand1=data1;
     wire [`DATA_WID] operand2=(opcode==`OPCODE_ARITHI)?imm:data2;
     //暂存
@@ -77,11 +77,11 @@ module ALU{
                     end
                     `OPCODE_AUIPC:begin
                         out_is_jump<=1;
-                        out_data<=pc+(imm<<12);
+                        out_data<=pc+imm;
                     end
                     `OPCODE_LUI:begin
                         out_is_jump<=1;
-                        out_data<=(imm<<12);
+                        out_data<=imm;
                     end
                     `OPCODE_B:begin
                         out_is_jump<=is_jump;

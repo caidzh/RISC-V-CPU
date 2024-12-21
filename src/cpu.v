@@ -2,6 +2,14 @@
 // port modification allowed for debugging purposes
 
 `include "const.v"
+`include "ALU.v"
+`include "decoder.v"
+`include "ifetch.v"
+`include "LSB.v"
+`include "memctrl.v"
+`include "regfile.v"
+`include "ROB.v"
+`include "RS.v"
 
 module cpu(
   input  wire                 clk_in,			// system clock signal
@@ -30,20 +38,28 @@ module cpu(
 // - 0x30004 read: read clocks passed since cpu starts (in dword, 4 bytes)
 // - 0x30004 write: indicates program stop (will output '\0' through uart tx)
 
-always @(posedge clk_in)
-  begin
-    if (rst_in)
-      begin
+// always @(posedge clk_in)
+//   begin
+//     if (rst_in)
+//       begin
       
-      end
-    else if (!rdy_in)
-      begin
+//       end
+//     else if (!rdy_in)
+//       begin
       
-      end
-    else
-      begin
+//       end
+//     else
+//       begin
       
-      end
-  end
+//       end
+//   end
+
+wire rollback;
+
+wire out_is_data;
+wire [`DATA_WID] out_data;
+wire out_is_jump;
+wire [`ADDR_WID] out_pc;
+wire [`ROB_ID_WID] out_rob_target;
 
 endmodule

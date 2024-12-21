@@ -56,8 +56,8 @@ module LSB{
     //LSB out (load)
     output wire out_valid,
     output wire [`ROB_ID_WID] out_rob_id,
-    output wire [`DATA_WID] out_data,
-}
+    output wire [`DATA_WID] out_data
+};
     localparam IDLE=0,WAIT=1;
     reg status;
 
