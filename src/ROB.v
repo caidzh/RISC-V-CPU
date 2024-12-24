@@ -2,7 +2,7 @@
 `define ROB
 `include "const.v"
 
-module ROB{
+module ROB(
     input wire clk,
     input wire rst,
     input wire rdy,
@@ -16,6 +16,7 @@ module ROB{
     input wire [`OPCODE_WID] inst_opcode,
     input wire [`REG_ID_WID] inst_rd,
     input wire [`ADDR_WID] inst_pc,
+    input wire inst_is_branch,
     input wire inst_predict_is_jump,
     input wire inst_can_commit,
     
@@ -59,17 +60,13 @@ module ROB{
     output wire is_rs1_depend,
     output wire [`DATA_WID] rs1_data,
     output wire is_rs2_depend,
-    output wire [`DATA_WID] rs2_data
-    output wire [`ROB_POS_WID] rd_rob_id,
-};
+    output wire [`DATA_WID] rs2_data,
+    output wire [`ROB_ID_WID] rd_rob_id
+);
 
     reg [`ROB_ID_WID] head;
     reg [`ROB_ID_WID] tail;
-    reg [`ROB_ID_WID] sz;
-
-    reg [`ROB_ID_WID] nxt_head;
-    reg [`ROB_ID_WID] nxt_tail;
-    reg [`ROB_ID_WID] nxt_sz;
+    reg [3:0] sz;
 
     reg rob_busy[`ROB_SZ-1:0];
     reg rob_can_commit[`ROB_SZ-1:0];
@@ -77,54 +74,49 @@ module ROB{
     reg [`REG_ID_WID] rob_rd[`ROB_SZ-1:0];
     reg [`ADDR_WID] rob_pc[`ROB_SZ-1:0];
     reg [`DATA_WID] rob_rd_data[`ROB_SZ-1:0];
+    reg rob_is_branch[`ROB_SZ-1:0];
     reg rob_predict_jump[`ROB_SZ-1:0];//predict
     reg rob_is_jump[`ROB_SZ-1:0];//real
     reg [`ADDR_WID] rob_jump_pc[`ROB_SZ-1:0];//real jump pc
 
-    integer i;
-
     //ROB queue
+    wire [`ROB_ID_WID] nxt_head=head+(sz>0?rob_can_commit[head]:0);
+    wire [`ROB_ID_WID] nxt_tail=tail+inst_valid;
+    wire [3:0] nxt_sz=sz-(sz>0?rob_can_commit[head]:0)+inst_valid;
+
     always @(*)begin
-        nxt_head=head+(rob_can_commit[head]&&sz>0);
-        nxt_tail=tail+inst_valid;
-        nxt_sz=sz;
-        if(rob_can_commit[head]&&sz>0)
-            nxt_sz=nxt_sz-1;
-        if(inst_valid)
-            nxt_sz=nxt_sz+1;
         rob_full=(nxt_head==nxt_tail&&nxt_sz>0);
     end
 
     //answer decoder call after any update
-    always @(*)begin
-        if(is_call_rs1)begin
-            if(busy[call_rs1_rob_id])begin
-                is_rs1_depend=rob_can_commit[call_rs1_rob_id];
-                rs1_data=rob_rd_data[call_rs1_rob_id];
-            end else begin
-                is_rs1_depend=0;
-            end
-        end
-        if(is_call_rs2)begin
-            if(busy[call_rs2_rob_id])begin
-                is_rs2_depend=rob_can_commit[call_rs2_rob_id];
-                rs2_data=rob_rd_data[call_rs2_rob_id];
-            end else begin
-                is_rs2_depend=0;
-            end
-        end
-        rd_rob_id=tail;
-    end
+    assign is_rs1_depend=(is_call_rs1?(rob_busy[call_rs1_rob_id]?rob_can_commit[call_rs1_rob_id]:0):0);
+    assign rs1_data=(is_call_rs1?(rob_busy[call_rs1_rob_id]?rob_rd_data[call_rs1_rob_id]:0):0);
+    assign is_rs2_depend=(is_call_rs2?(rob_busy[call_rs2_rob_id]?rob_can_commit[call_rs2_rob_id]:0):0);
+    assign rs2_data=(is_call_rs2?(rob_busy[call_rs2_rob_id]?rob_rd_data[call_rs2_rob_id]:0):0);
+    assign rd_rob_id=tail;
 
+    integer i;
     always @(posedge clk)begin
-        if(rst)begin
+        if(rst||rollback)begin
+            // $display("ROB rollback");
+            rollback<=0;
+            head<=0;
+            tail<=0;
+            sz<=0;
+            pc_valid<=0;
+            commit_reg_valid<=0;
+            commit_lsb_valid<=0;
             for(i=0;i<`ROB_SZ;i=i+1)begin
                 rob_busy[i]<=0;
-                head<=0;
-                tail<=0;
-                nxt_head<=0;
-                nxt_tail<=0;
-                sz<=0;
+                rob_can_commit[i]<=0;
+                rob_opcode[i]<=0;
+                rob_rd[i]<=0;
+                rob_pc[i]<=0;
+                rob_rd_data[i]<=0;
+                rob_is_branch[i]<=0;
+                rob_predict_jump[i]<=0;
+                rob_is_jump[i]<=0;
+                rob_jump_pc[i]<=0;
             end
         end else if(rdy)begin
             head<=nxt_head;
@@ -133,18 +125,101 @@ module ROB{
             commit_reg_valid<=0;
             commit_lsb_valid<=0;
             pc_valid<=0;
+            is_branch<=0;
+
+            // if(sz>0&&sz!=8)begin
+            //     $display("%d %d %d",head,tail,sz);
+            //     for(i=0;i<`ROB_SZ;i=i+1)begin
+            //         if(rob_busy[i])begin
+            //             $display("%d %b %h",i,rob_opcode[i],rob_pc[i]);
+            //         end
+            //     end
+            // end
+            
             if(inst_valid)begin
+
+                //debug
+                // case(inst_opcode)
+                //     `OPCODE_ARITH:begin
+                //         $display("insert ARITH");
+                //     end
+                //     `OPCODE_S:begin
+                //         $display("insert S");
+                //     end
+                //     `OPCODE_L:begin
+                //         $display("insert L");
+                //     end
+                //     `OPCODE_B:begin
+                //         $display("insert B");
+                //     end
+                //     `OPCODE_ARITHI:begin
+                //         $display("insert ARITHI");
+                //     end
+                //     `OPCODE_LUI:begin
+                //         $display("insert LUI");
+                //     end
+                //     `OPCODE_AUIPC:begin
+                //         $display("insert AUIPC");
+                //     end
+                //     `OPCODE_JAL:begin
+                //         $display("insert JAL");
+                //     end
+                //     `OPCODE_JALR:begin
+                //         $display("insert JALR");
+                //     end
+                //     default:begin
+                //         $display("error inst");
+                //     end
+                // endcase
+                //
+
                 rob_busy[tail]<=1;
                 rob_can_commit[tail]<=inst_can_commit;
                 rob_opcode[tail]<=inst_opcode;
                 rob_rd[tail]<=inst_rd;
                 rob_pc[tail]<=inst_pc;
                 rob_rd_data[tail]<=0;
+                rob_is_branch[tail]<=inst_is_branch;
                 rob_predict_jump[tail]<=inst_predict_is_jump;
                 rob_is_jump[tail]<=0;
                 rob_jump_pc[tail]<=0;
             end
             if(sz>0&&rob_can_commit[head])begin
+
+                //debug
+                // case(rob_opcode[head][`OPCODE_RANGE])
+                //     `OPCODE_ARITH:begin
+                //         $display("commit ARITH");
+                //     end
+                //     `OPCODE_S:begin
+                //         $display("commit S");
+                //     end
+                //     `OPCODE_L:begin
+                //         $display("commit L");
+                //     end
+                //     `OPCODE_B:begin
+                //         $display("commit B");
+                //     end
+                //     `OPCODE_ARITHI:begin
+                //         $display("commit ARITHI");
+                //     end
+                //     `OPCODE_LUI:begin
+                //         $display("commit LUI");
+                //     end
+                //     `OPCODE_AUIPC:begin
+                //         $display("commit AUIPC");
+                //     end
+                //     `OPCODE_JAL:begin
+                //         $display("commit JAL");
+                //     end
+                //     `OPCODE_JALR:begin
+                //         $display("commit JALR");
+                //     end
+                // endcase
+                // $display("commit pc = %h",rob_pc[head]);
+                //
+
+                rob_busy[head]<=0;
                 case(rob_opcode[head])
                     `OPCODE_S:begin
                         //to LSB
@@ -154,12 +229,12 @@ module ROB{
                     end
                     `OPCODE_B:begin
                         //to ifetch
-                        pc_valid<=1;
                         pc<=rob_pc[head];
+                        is_jump<=rob_is_jump[head];
                         is_branch<=1;
                         if(rob_predict_jump[head]!=rob_is_jump[head])begin
                             rollback<=1;
-                            is_jump<=rob_is_jump[head];
+                            pc_valid<=1;
                             jump_pc<=rob_jump_pc[head];
                         end
                     end

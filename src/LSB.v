@@ -2,7 +2,7 @@
 `define LSB
 `include "const.v"
 
-module LSB{
+module LSB(
     input wire clk,
     input wire rst,
     input wire rdy,
@@ -43,31 +43,32 @@ module LSB{
     input wire [`DATA_WID] commit_data,
 
     //LSB call MemCtrl
-    output wire call_valid,
-    output wire call_is_store,
-    output wire [`ADDR_WID] call_addr,
-    output wire [`ST_LEN_WID] call_len,
-    output wire [`DATA_WID] call_data,
+    output reg call_valid,
+    output reg call_is_store,
+    output reg [`ADDR_WID] call_addr,
+    output reg [`ST_LEN_WID] call_len,
+    output reg [`DATA_WID] call_data,
     
     //MemCtrl respond
     input wire respond_valid,
     input wire [`DATA_WID] respond_data,
 
     //LSB out (load)
-    output wire out_valid,
-    output wire [`ROB_ID_WID] out_rob_id,
-    output wire [`DATA_WID] out_data
-};
+    output reg out_valid,
+    output reg [`ROB_ID_WID] out_rob_id,
+    output reg [`DATA_WID] out_data
+);
     localparam IDLE=0,WAIT=1;
     reg status;
 
     reg [`LSB_ID_WID] head;
     reg [`LSB_ID_WID] tail;
-    reg [`LSB_ID_WID] sz;
+    reg [4:0] execute_pointer;
+    reg [4:0] sz;
 
     reg [`LSB_ID_WID] nxt_head;
     reg [`LSB_ID_WID] nxt_tail;
-    reg [`LSB_ID_WID] nxt_sz;
+    reg [4:0] nxt_sz;
 
     //LSB information
     reg busy[`LSB_SZ-1:0];
@@ -90,20 +91,20 @@ module LSB{
     integer i;
 
     wire head_can_executed;
-    wire is_responded;
+
+    assign head_can_executed=(sz>0&&!lsb_rs1_busy[head]&&!lsb_rs2_busy[head]&&(executed[head]||(!lsb_is_store[head]&&!rollback)));
 
     always @(*)begin
-        head_can_executed=(!is_empty&&!lsb_rs1_busy[head]&&!lsb_rs2_busy[head]&&executed[head]);
         nxt_head=head+(status==WAIT&&respond_valid);
         nxt_tail=tail+inst_valid;
         nxt_sz=sz;
-        if(is_responded)begin
+        if((status==WAIT&&respond_valid))begin
             nxt_sz=nxt_sz-1;
         end
         if(inst_valid)begin
             nxt_sz=nxt_sz+1;
         end
-        lsb_full=(head==tail)&&(nxt_sz!=0);
+        lsb_full=(nxt_head==nxt_tail)&&(nxt_sz!=0);
     end
 
     always @(posedge clk)begin
@@ -111,29 +112,58 @@ module LSB{
         tail<=nxt_tail;
         sz<=nxt_sz;
         out_valid<=0;
-        if(rst||rollback)begin
+        if(rst||(rollback&&execute_pointer==`LSB_TOP))begin
+            // $display("LSB rollback");
             status<=IDLE;
             head<=0;
             tail<=0;
             sz<=0;
-            is_empty<=1;
             call_valid<=0;
             out_valid<=0;
             lsb_full<=0;
+            execute_pointer<=`LSB_TOP;
             for(i=0;i<`LSB_SZ;i=i+1)begin
                 busy[i]<=0;
+            end
+        end else if(rollback)begin
+            // $display("LSB rollback");
+            tail<=execute_pointer+1;
+            for(i=0;i<`LSB_SZ;i=i+1)begin
+                if(!executed[i])
+                    busy[i]<=0;
+            end
+            if(status==WAIT&&respond_valid)begin
+                status<=IDLE;
+                call_valid<=0;
+                busy[head]<=0;
+                executed[head]<=0;
+                if(execute_pointer[`LSB_ID_WID]==head)begin
+                    execute_pointer<=`LSB_TOP;
+                    sz<=0;
+                end
             end
         end else if(rdy)begin
             //LSB call MemCtrl
             //LSB out (load)
             //MemCtrl respond
+            // if(sz>0&&sz<16)begin
+            //     $display("LSB ------");
+            //     $display("%d %d %d",head,tail,sz);
+            //     for(i=0;i<`LSB_SZ;i=i+1)begin
+            //         if(busy[i])begin
+            //             $display("fuck %h %b %h",i,lsb_opcode[i],lsb_rd_id[i]);
+            //         end
+            //     end
+            //     $display("------");
+            // end
             if(status==IDLE)begin
                 call_valid<=0;
                 if(head_can_executed)begin
                     status<=WAIT;
                     call_valid<=1;
                     call_is_store<=lsb_is_store[head];
-                    call_addr<=call;
+                    call_addr<=lsb_rs1_data[head]+lsb_imm[head];
+                    // $display("execute %b %h->%h",lsb_is_store[head],lsb_rs1_data[head]+lsb_imm[head],lsb_rs2_data[head]);
                     case(lsb_func3[head])
                         `FUNC3_LB,`FUNC3_LBU:call_len<=1;
                         `FUNC3_LH,`FUNC3_LHU:call_len<=2;
@@ -144,17 +174,21 @@ module LSB{
                 end
             end else begin
                 if(respond_valid)begin
+                    // $display("execute done %h",head);
                     status<=IDLE;
                     call_valid<=0;
                     busy[head]<=0;
+                    executed[head]<=0;
+                    if(execute_pointer=={1'b0,head})
+                        execute_pointer<=`LSB_TOP;
                     if(!lsb_is_store[head])begin
                         out_valid<=1;
                         out_rob_id<=lsb_rob_target[head];
                         case(lsb_func3[head])
                             `FUNC3_LB:out_data<={{24{respond_data[7]}},respond_data[7:0]};
-                            `FUNC3_LBU:out_data<={24'b0, respond_data[7:0]};
+                            `FUNC3_LBU:out_data<={24'b0,respond_data[7:0]};
                             `FUNC3_LH:out_data<={{16{respond_data[15]}},respond_data[15:0]};
-                            `FUNC3_LHU:out_data<={16'b0, respond_data[15:0]};
+                            `FUNC3_LHU:out_data<={16'b0,respond_data[15:0]};
                             `FUNC3_LW:out_data<=respond_data; 
                         endcase
                     end
@@ -163,8 +197,9 @@ module LSB{
             //ROB update LSB
             if(commit_valid)begin
                 for(i=0;i<`LSB_SZ;i=i+1)begin
-                    if(busy[i]&&!executed[i]&&lsb_rob_id[i]==commit_rob_id)begin
-                        execute[i]<=1;
+                    if(busy[i]&&!executed[i]&&lsb_rob_target[i]==commit_rob_id)begin
+                        executed[i]<=1;
+                        execute_pointer<={1'b0,i[`LSB_ID_WID]};
                     end
                 end
             end
@@ -201,14 +236,19 @@ module LSB{
                 lsb_is_store[tail]<=is_store;
                 lsb_func3[tail]<=func3;
                 lsb_rs1_busy[tail]<=rs1_busy;
+                lsb_rs1_id[tail]<=rs1_id;
                 lsb_rs1_data[tail]<=rs1_data;
                 lsb_rs1_rob_id[tail]<=rs1_rob_id;
                 lsb_rs2_busy[tail]<=rs2_busy;
+                lsb_rs2_id[tail]<=rs2_id;
                 lsb_rs2_data[tail]<=rs2_data;
                 lsb_rs2_rob_id[tail]<=rs2_rob_id;
                 lsb_imm[tail]<=imm;
                 lsb_rd_id[tail]<=rd_id;
-                lsb_rob_target<=rob_target;
+                lsb_rob_target[tail]<=rob_target;
+                executed[tail]<=0;
+                // if(is_store)
+                //     $display("insert %h %h %h %h %h %h",rs1_busy,rs1_id,rs1_rob_id,rs2_busy,rs2_id,rs2_rob_id);
             end
         end
     end

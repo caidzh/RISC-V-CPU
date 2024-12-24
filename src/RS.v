@@ -2,7 +2,7 @@
 `define RS
 `include "const.v"
 
-module RS{
+module RS(
     input wire clk,
     input wire rdy,
     input wire rst,
@@ -16,10 +16,10 @@ module RS{
     input wire [`OPCODE_WID] inst_opcode,
     input wire [`FUNC3_WID] inst_func3,
     input wire inst_func1,
-    input wire inst_reg1_valid,
+    input wire inst_reg1_depend_rob,
     input wire [`DATA_WID] inst_reg1_data,
     input wire [`ROB_ID_WID] inst_reg1_rob_id,
-    input wire inst_reg2_valid,
+    input wire inst_reg2_depend_rob,
     input wire [`DATA_WID] inst_reg2_data,
     input wire [`ROB_ID_WID] inst_reg2_rob_id,
     input wire [`ROB_ID_WID] inst_rd_rob_id,
@@ -48,16 +48,16 @@ module RS{
     output reg [`DATA_WID] exe_off,
     output reg [`ADDR_WID] exe_pc,
     output reg [`ROB_ID_WID] exe_rob_target
-};
+);
     //Reservation Station
     reg busy[`RS_SZ-1:0];
     reg [`OPCODE_WID] rs_inst_opcode[`RS_SZ-1:0];
     reg [`FUNC3_WID] rs_inst_func3[`RS_SZ-1:0];
     reg rs_inst_func1[`RS_SZ-1:0];
-    reg rs_inst_reg1_valid[`RS_SZ-1:0];
+    reg rs_inst_reg1_depend_rob[`RS_SZ-1:0];
     reg [`DATA_WID] rs_inst_reg1_data[`RS_SZ-1:0];
     reg [`ROB_ID_WID] rs_inst_reg1_rob_id[`RS_SZ-1:0];
-    reg rs_inst_reg2_valid[`RS_SZ-1:0];
+    reg rs_inst_reg2_depend_rob[`RS_SZ-1:0];
     reg [`DATA_WID] rs_inst_reg2_data[`RS_SZ-1:0];
     reg [`ROB_ID_WID] rs_inst_reg2_rob_id[`RS_SZ-1:0];
     reg [`ROB_ID_WID] rs_inst_rd_rob_id[`RS_SZ-1:0];
@@ -82,7 +82,7 @@ module RS{
         rs_full=1;
         for(i=0;i<`RS_SZ;i=i+1)begin
             if(busy[i])begin
-                if(rs_inst_reg1_valid[i]&&rs_inst_reg2_valid[i]&&!find_execute)begin
+                if(!rs_inst_reg1_depend_rob[i]&&!rs_inst_reg2_depend_rob[i]&&!find_execute)begin
                     find_execute=1;
                     execute=i;
                 end
@@ -92,17 +92,24 @@ module RS{
                 rs_full=0;
             end
         end
+        // $display("execute %d",execute);
     end
 
     always @(posedge clk)begin
         if(rst||rollback)begin
-            for(i=0;i<`RS_SIZE;i=i+1)begin
+            // $display("RS rollback");
+            for(i=0;i<`RS_SZ;i=i+1)begin
                 busy[i]<=0;
             end
-            rs_full<=0
+            rs_full<=0;
             exe_valid<=0;
         end else if(rdy)begin
             exe_valid<=0;
+            // for(i=0;i<`RS_SZ;i=i+1)begin
+            //     if(busy[i])begin
+            //         $display("%d %b %b %b",i,rs_inst_opcode[i],rs_inst_reg1_depend_rob[i],rs_inst_reg2_depend_rob[i]);
+            //     end
+            // end
             if(find_execute)begin
                 exe_valid<=1;
                 busy[execute]<=0;
@@ -119,13 +126,13 @@ module RS{
             if(alu_valid)begin
                 for(i=0;i<`RS_SZ;i=i+1)begin
                     if(busy[i])begin
-                        if(!rs_inst_reg1_valid[i]&&rs_inst_reg1_rob_id[i]==alu_rob_id)begin
+                        if(rs_inst_reg1_depend_rob[i]&&rs_inst_reg1_rob_id[i]==alu_rob_id)begin
                             rs_inst_reg1_data[i]<=alu_data;
-                            rs_inst_reg1_valid[i]=1;
+                            rs_inst_reg1_depend_rob[i]<=0;
                         end
-                        if(!rs_inst_reg2_valid[i]&&rs_inst_reg2_rob_id[i]==alu_rob_id)begin
+                        if(rs_inst_reg2_depend_rob[i]&&rs_inst_reg2_rob_id[i]==alu_rob_id)begin
                             rs_inst_reg2_data[i]<=alu_data;
-                            rs_inst_reg2_valid[i]=1;
+                            rs_inst_reg2_depend_rob[i]<=0;
                         end
                     end
                 end
@@ -133,13 +140,13 @@ module RS{
             if(lsb_valid)begin
                 for(i=0;i<`RS_SZ;i=i+1)begin
                     if(busy[i])begin
-                        if(!rs_inst_reg1_valid[i]&&rs_inst_reg1_rob_id[i]==lsb_rob_id)begin
+                        if(rs_inst_reg1_depend_rob[i]&&rs_inst_reg1_rob_id[i]==lsb_rob_id)begin
                             rs_inst_reg1_data[i]<=lsb_data;
-                            rs_inst_reg1_valid[i]=1;
+                            rs_inst_reg1_depend_rob[i]<=0;
                         end
-                        if(!rs_inst_reg2_valid[i]&&rs_inst_reg2_rob_id[i]==lsb_rob_id)begin
+                        if(rs_inst_reg2_depend_rob[i]&&rs_inst_reg2_rob_id[i]==lsb_rob_id)begin
                             rs_inst_reg2_data[i]<=lsb_data;
-                            rs_inst_reg2_valid[i]=1;
+                            rs_inst_reg2_depend_rob[i]<=0;
                         end
                     end
                 end
@@ -149,10 +156,10 @@ module RS{
                 rs_inst_opcode[blank]<=inst_opcode;
                 rs_inst_func3[blank]<=inst_func3;
                 rs_inst_func1[blank]<=inst_func1;
-                rs_inst_reg1_valid[blank]<=inst_reg1_valid;
+                rs_inst_reg1_depend_rob[blank]<=inst_reg1_depend_rob;
                 rs_inst_reg1_data[blank]<=inst_reg1_data;
                 rs_inst_reg1_rob_id[blank]<=inst_reg1_rob_id;
-                rs_inst_reg2_valid[blank]<=inst_reg2_valid;
+                rs_inst_reg2_depend_rob[blank]<=inst_reg2_depend_rob;
                 rs_inst_reg2_data[blank]<=inst_reg2_data;
                 rs_inst_reg2_rob_id[blank]<=inst_reg2_rob_id;
                 rs_inst_rd_rob_id[blank]<=inst_rd_rob_id;

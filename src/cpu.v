@@ -38,6 +38,10 @@ module cpu(
 // - 0x30004 read: read clocks passed since cpu starts (in dword, 4 bytes)
 // - 0x30004 write: indicates program stop (will output '\0' through uart tx)
 
+//  always @(posedge clk_in)begin
+//   $display("new cycle");
+//  end
+
 //ALU output
 wire ALU_out_is_data;
 wire [`DATA_WID] ALU_out_data;
@@ -66,6 +70,7 @@ wire [`ROB_ID_WID] decoder_rd_rob_id;
 wire [`DATA_WID] decoder_imm;
 wire [`DATA_WID] decoder_off;
 wire [`ADDR_WID] decoder_pc;
+wire decoder_is_branch;
 wire decoder_is_predict_jump;
 wire decoder_is_store;
 wire decoder_can_commit;
@@ -103,7 +108,7 @@ wire [`DATA_WID] LSB_out_data;
 wire memctrl_respond_valid;
 wire [`DATA_WID] memctrl_respond_data;
 wire memctrl_mem_data_valid;
-wire [`CACHE_BLK_SZ_WID] memctrl_mem_data;
+wire [`CACHE_BLK_MAXLEN:0] memctrl_mem_data;
 
 //regfile output
 wire regfile_rs1_busy;
@@ -132,7 +137,7 @@ wire ROB_is_rs1_depend;
 wire [`DATA_WID] ROB_rs1_data;
 wire ROB_is_rs2_depend;
 wire [`DATA_WID] ROB_rs2_data;
-wire [`ROB_POS_WID] ROB_rd_rob_id;
+wire [`ROB_ID_WID] ROB_rd_rob_id;
 
 //RS output
 wire rs_full;
@@ -166,10 +171,10 @@ ALU t_ALU(
   .out_data(ALU_out_data),
   .out_is_jump(ALU_out_is_jump),
   .out_pc(ALU_out_pc),
-  .out_rob_target(out_rob_target)
+  .out_rob_target(ALU_out_rob_target)
 );
 
-decoder t_decoder(
+Decoder t_Decoder(
   .rst(rst_in),
   .rdy(rdy_in),
   .rollback(rollback),
@@ -197,6 +202,7 @@ decoder t_decoder(
   .imm(decoder_imm),
   .off(decoder_off),
   .pc(decoder_pc),
+  .is_branch(decoder_is_branch),
   .is_predict_jump(decoder_is_predict_jump),
   .is_store(decoder_is_store),
   .can_commit(decoder_can_commit),
@@ -229,7 +235,7 @@ decoder t_decoder(
   .to_lsb(decoder_to_lsb)
 );
 
-ifetch t_ifetch(
+IFetch t_IFetch(
   .clk(clk_in),
   .rst(rst_in),
   .rdy(rdy_in),
@@ -294,7 +300,7 @@ LSB t_LSB(
   .out_data(LSB_out_data)
 );
 
-memctrl t_memctrl(
+MemCtrl t_MemCtrl(
   .clk(clk_in),
   .rst(rst_in),
   .rdy(rdy_in),
@@ -312,11 +318,12 @@ memctrl t_memctrl(
   .respond_data(memctrl_respond_data),
   .mem_find_valid(ifetch_mem_find_valid),
   .mem_find_addr(ifetch_mem_find_addr),
+  .io_buffer_full(io_buffer_full),
   .mem_data_valid(memctrl_mem_data_valid),
   .mem_data(memctrl_mem_data)
 );
 
-regfile t_regfile(
+RegFile t_RegFile(
   .clk(clk_in),
   .rst(rst_in),
   .rdy(rdy_in),
@@ -350,6 +357,7 @@ ROB t_ROB(
   .inst_opcode(decoder_opcode),
   .inst_rd(decoder_rd),
   .inst_pc(decoder_pc),
+  .inst_is_branch(decoder_is_branch),
   .inst_predict_is_jump(decoder_is_predict_jump),
   .inst_can_commit(decoder_can_commit),
   .lsb_chg(LSB_out_valid),
@@ -393,10 +401,10 @@ RS t_RS(
   .inst_opcode(decoder_opcode),
   .inst_func3(decoder_func3),
   .inst_func1(decoder_func1),
-  .inst_reg1_valid(decoder_rs1_valid),
+  .inst_reg1_depend_rob(decoder_rs1_depend_rob),
   .inst_reg1_data(decoder_rs1_data),
   .inst_reg1_rob_id(decoder_rs1_rob_id),
-  .inst_reg2_valid(decoder_rs2_valid),
+  .inst_reg2_depend_rob(decoder_rs2_depend_rob),
   .inst_reg2_data(decoder_rs2_data),
   .inst_reg2_rob_id(decoder_rs2_rob_id),
   .inst_rd_rob_id(decoder_rd_rob_id),
