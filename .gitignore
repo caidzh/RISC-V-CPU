@@ -2,7 +2,6 @@ fpga/
 script/
 testcase/
 testspace/
-Makefile
 
 testspace/*
 !.keep
