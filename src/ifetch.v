@@ -46,6 +46,8 @@ module IFetch(
     reg [`CACHE_TAG_WID] blk_tag[`CACHE_BLK_NUM_SZ-1:0];
     reg [`CACHE_BLK_MAXLEN:0] blk_data[`CACHE_BLK_NUM_SZ-1:0];
 
+    reg ifetch_predict_jump;
+
     wire [`CACHE_INDEX_WID] pc_index;
     wire [`CACHE_TAG_WID] pc_tag;
     wire [`CACHE_OFF_WID] pc_off;
@@ -85,17 +87,20 @@ module IFetch(
     //B imm[12|10:5] rs2 rs1 funct3 imm[4:1|11] opcode
     always @(*)begin
         predict_pc=ifetch_pc+4;
-        out_inst_predict_jump=0;
+        ifetch_predict_jump=0;
         if(fetch_inst_is_branch)begin
             case(fetch_inst[`OPCODE_RANGE])
                 `OPCODE_JAL:begin
                     predict_pc=ifetch_pc+{{12{fetch_inst[31]}},fetch_inst[19:12],fetch_inst[20],fetch_inst[30:21],1'b0};
-                    out_inst_predict_jump=1;
+                    ifetch_predict_jump=1;
                 end
                 `OPCODE_B:begin
-                    if(tracker[bp_index]>=2)begin
+                    if(tracker[bp_index]>=2'd2)begin
                         predict_pc=ifetch_pc+{{20{fetch_inst[31]}},fetch_inst[7],fetch_inst[30:25],fetch_inst[11:8],1'b0};
-                        out_inst_predict_jump=1;
+                        ifetch_predict_jump=1;
+                    end else begin
+                        predict_pc=ifetch_pc+4;
+                        ifetch_predict_jump=0;
                     end
                 end
             endcase
@@ -139,7 +144,7 @@ module IFetch(
                     out_inst<=fetch_inst;
                     out_inst_pc<=ifetch_pc;
                     ifetch_pc<=predict_pc;
-                    // $display("%h",predict_pc);
+                    out_inst_predict_jump<=ifetch_predict_jump;
                 end
             end
             //update branch history

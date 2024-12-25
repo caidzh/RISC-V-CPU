@@ -86,6 +86,7 @@ module MemCtrl(
                             target_sz<=lsb_call_len;
                             store_addr<=lsb_call_addr;
                         end else begin
+                            // $display("execute load %h",lsb_call_addr);
                             status<=LOAD;
                             call_addr<=lsb_call_addr;
                             ready_sz<=0;

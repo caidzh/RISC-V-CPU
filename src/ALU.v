@@ -28,19 +28,19 @@ module ALU(
 );
     wire [`DATA_WID] operand1=data1;
     wire [`DATA_WID] operand2=(opcode==`OPCODE_ARITHI)?imm:data2;
-    //暂存
+
     reg [`DATA_WID] data;
     reg is_jump;
 
     always @(*)begin
-        if(opcode==`OPCODE_ARITH || opcode==`OPCODE_ARITHI)begin
+        if(opcode==`OPCODE_ARITH||opcode==`OPCODE_ARITHI)begin
             case(func3)
                 `FUNC3_ADD:data=(func1&&opcode==`OPCODE_ARITH)?operand1-operand2:operand1+operand2;
                 `FUNC3_XOR:data=operand1^operand2;
                 `FUNC3_OR:data=operand1|operand2;
                 `FUNC3_AND:data=operand1&operand2;
                 `FUNC3_SLL:data=operand1<<operand2;
-                `FUNC3_SRL:data=func1?$signed(operand1)>>operand2:operand1>>operand2;
+                `FUNC3_SRL:data=func1?$signed(operand1)>>operand2[5:0]:operand1>>operand2[5:0];
                 `FUNC3_SLT:data=$signed(operand1)<$signed(operand2);
                 `FUNC3_SLTU:data=operand1<operand2;
             endcase
@@ -77,11 +77,11 @@ module ALU(
                     end
                     `OPCODE_AUIPC:begin
                         out_is_jump<=1;
-                        out_data<=pc+imm;
+                        out_data<=pc+(imm<<12);
                     end
                     `OPCODE_LUI:begin
                         out_is_jump<=1;
-                        out_data<=imm;
+                        out_data<=(imm<<12);
                     end
                     `OPCODE_B:begin
                         out_is_jump<=is_jump;

@@ -82,6 +82,7 @@ wire decoder_is_call_regfile_rs1;
 wire [`REG_ID_WID] decoder_call_regfile_rs1;
 wire decoder_is_call_regfile_rs2;
 wire [`REG_ID_WID] decoder_call_regfile_rs2;
+wire [`ADDR_WID] decoder_call_regfile_pc;
 wire decoder_to_rs;
 wire decoder_to_lsb;
 
@@ -130,6 +131,7 @@ wire ROB_commit_reg_valid;
 wire [`REG_ID_WID] ROB_commit_reg_rd;
 wire [`DATA_WID] ROB_commit_reg_data; 
 wire [`ROB_ID_WID] ROB_commit_reg_rob_id;
+wire [`ADDR_WID] ROB_commit_reg_pc;
 wire ROB_commit_lsb_valid;
 wire [`ROB_ID_WID] ROB_commit_lsb_rob_id;
 wire [`DATA_WID] ROB_commit_lsb_data;
@@ -225,6 +227,7 @@ Decoder t_Decoder(
   .call_regfile_rs1(decoder_call_regfile_rs1),
   .is_call_regfile_rs2(decoder_is_call_regfile_rs2),
   .call_regfile_rs2(decoder_call_regfile_rs2),
+  .call_regfile_pc(decoder_call_regfile_pc),
   .regfile_rs1_data(regfile_answer_rs1_data),
   .regfile_rs1_busy(regfile_rs1_busy),
   .regfile_rs1_rob_id(regfile_rs1_rob_id),
@@ -279,6 +282,7 @@ LSB t_LSB(
   .imm(decoder_imm),
   .rd_id(decoder_rd),
   .rob_target(decoder_rd_rob_id),
+  .pc(decoder_pc),
   .alu_valid(ALU_out_is_data),
   .alu_rob_id(ALU_out_rob_target),
   .alu_data(ALU_out_data),
@@ -332,6 +336,7 @@ RegFile t_RegFile(
   .call_rs1(decoder_call_regfile_rs1),
   .is_call_rs2(decoder_is_call_regfile_rs2),
   .call_rs2(decoder_call_regfile_rs2),
+  .decoder_call_pc(decoder_pc),
   .rs1_busy(regfile_rs1_busy),
   .answer_rs1_data(regfile_answer_rs1_data),
   .rs1_rob_id(regfile_rs1_rob_id),
@@ -341,10 +346,12 @@ RegFile t_RegFile(
   .chg_dependency(decoder_rd_valid),//maybe wrong
   .chg_rs1(decoder_rd),//maybe wrong
   .dependent_rob_id(decoder_rd_rob_id),//maybe wrong
+  .chg_pc(decoder_pc),
   .is_commit(ROB_commit_reg_valid),
   .commit_rd(ROB_commit_reg_rd),
   .commit_data(ROB_commit_reg_data),
-  .commit_rob_id(ROB_commit_reg_rob_id)
+  .commit_rob_id(ROB_commit_reg_rob_id),
+  .commit_pc(ROB_commit_reg_pc)
 );
 
 ROB t_ROB(
@@ -381,6 +388,7 @@ ROB t_ROB(
   .commit_reg_rd(ROB_commit_reg_rd),
   .commit_reg_data(ROB_commit_reg_data),
   .commit_reg_rob_id(ROB_commit_reg_rob_id),
+  .commit_reg_pc(ROB_commit_reg_pc),
   .commit_lsb_valid(ROB_commit_lsb_valid),
   .commit_lsb_rob_id(ROB_commit_lsb_rob_id),
   .commit_lsb_data(ROB_commit_lsb_data),

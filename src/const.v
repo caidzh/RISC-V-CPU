@@ -4,7 +4,7 @@
 // CPU
 // MAXLEN
 `define CACHE_BLK_MAXLEN 511
-`define LSB_TOP 16
+`define LSB_TOP 5'd16
 
 // SZ
 `define RS_SZ 16

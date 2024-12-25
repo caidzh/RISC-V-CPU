@@ -79,6 +79,8 @@ module RS(
     always @(*)begin
         find_blank=0;
         find_execute=0;
+        blank=0;
+        execute=0;
         rs_full=1;
         for(i=0;i<`RS_SZ;i=i+1)begin
             if(busy[i])begin
@@ -86,10 +88,12 @@ module RS(
                     find_execute=1;
                     execute=i;
                 end
-            end else if(!find_blank)begin
+            end else begin
+                if(find_blank)
+                    rs_full=0;
                 find_blank=1;
-                blank=i;
-                rs_full=0;
+                if(!blank)
+                    blank=i;
             end
         end
         // $display("execute %d",execute);
@@ -110,6 +114,25 @@ module RS(
             //         $display("%d %b %b %b",i,rs_inst_opcode[i],rs_inst_reg1_depend_rob[i],rs_inst_reg2_depend_rob[i]);
             //     end
             // end
+            if(find_blank&&inst_valid)begin
+                busy[blank]<=1;
+                rs_inst_opcode[blank]<=inst_opcode;
+                rs_inst_func3[blank]<=inst_func3;
+                rs_inst_func1[blank]<=inst_func1;
+                rs_inst_reg1_depend_rob[blank]<=inst_reg1_depend_rob;
+                rs_inst_reg1_data[blank]<=inst_reg1_data;
+                rs_inst_reg1_rob_id[blank]<=inst_reg1_rob_id;
+                rs_inst_reg2_depend_rob[blank]<=inst_reg2_depend_rob;
+                rs_inst_reg2_data[blank]<=inst_reg2_data;
+                rs_inst_reg2_rob_id[blank]<=inst_reg2_rob_id;
+                rs_inst_rd_rob_id[blank]<=inst_rd_rob_id;
+                rs_inst_imm[blank]<=inst_imm;
+                rs_inst_off[blank]<=inst_off;
+                rs_inst_pc[blank]<=inst_pc;
+                // if(inst_pc==1176)begin
+                //     $display("%b %h %h",inst_reg1_depend_rob,inst_reg1_data,inst_reg1_rob_id);
+                // end
+            end
             if(find_execute)begin
                 exe_valid<=1;
                 busy[execute]<=0;
@@ -150,22 +173,6 @@ module RS(
                         end
                     end
                 end
-            end
-            if(find_blank&&inst_valid)begin
-                busy[blank]<=1;
-                rs_inst_opcode[blank]<=inst_opcode;
-                rs_inst_func3[blank]<=inst_func3;
-                rs_inst_func1[blank]<=inst_func1;
-                rs_inst_reg1_depend_rob[blank]<=inst_reg1_depend_rob;
-                rs_inst_reg1_data[blank]<=inst_reg1_data;
-                rs_inst_reg1_rob_id[blank]<=inst_reg1_rob_id;
-                rs_inst_reg2_depend_rob[blank]<=inst_reg2_depend_rob;
-                rs_inst_reg2_data[blank]<=inst_reg2_data;
-                rs_inst_reg2_rob_id[blank]<=inst_reg2_rob_id;
-                rs_inst_rd_rob_id[blank]<=inst_rd_rob_id;
-                rs_inst_imm[blank]<=inst_imm;
-                rs_inst_off[blank]<=inst_off;
-                rs_inst_pc[blank]<=inst_pc;
             end
         end
     end

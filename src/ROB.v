@@ -50,6 +50,7 @@ module ROB(
     output reg [`REG_ID_WID] commit_reg_rd,
     output reg [`DATA_WID] commit_reg_data, 
     output reg [`ROB_ID_WID] commit_reg_rob_id,
+    output reg [`ADDR_WID] commit_reg_pc,
 
     //ROB update LSB
     output reg commit_lsb_valid,
@@ -95,6 +96,11 @@ module ROB(
     assign rs2_data=(is_call_rs2?(rob_busy[call_rs2_rob_id]?rob_rd_data[call_rs2_rob_id]:0):0);
     assign rd_rob_id=tail;
 
+    integer file;
+    initial begin
+        file=$fopen("verilog.txt", "w");
+    end
+
     integer i;
     always @(posedge clk)begin
         if(rst||rollback)begin
@@ -104,6 +110,7 @@ module ROB(
             tail<=0;
             sz<=0;
             pc_valid<=0;
+            is_branch<=0;
             commit_reg_valid<=0;
             commit_lsb_valid<=0;
             for(i=0;i<`ROB_SZ;i=i+1)begin
@@ -128,10 +135,10 @@ module ROB(
             is_branch<=0;
 
             // if(sz>0&&sz!=8)begin
-            //     $display("%d %d %d",head,tail,sz);
+            //     $fwrite(file,"%d %d %d\n",head,tail,sz);
             //     for(i=0;i<`ROB_SZ;i=i+1)begin
             //         if(rob_busy[i])begin
-            //             $display("%d %b %h",i,rob_opcode[i],rob_pc[i]);
+            //             $fwrite(file,"%d %b %h\n",i,rob_opcode[i],rob_pc[i]);
             //         end
             //     end
             // end
@@ -217,9 +224,14 @@ module ROB(
                 //     end
                 // endcase
                 // $display("commit pc = %h",rob_pc[head]);
-                //
+
+                // $fwrite(file,"commit pc = %h %h\n",rob_pc[head],head);
+                // if(rob_pc[head]==1176)begin
+                //     $fwrite(file,"wtf %b\n",rob_is_jump[head]);
+                // end
 
                 rob_busy[head]<=0;
+                commit_reg_pc<=rob_pc[head];
                 case(rob_opcode[head])
                     `OPCODE_S:begin
                         //to LSB
