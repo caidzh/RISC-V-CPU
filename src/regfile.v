@@ -42,10 +42,10 @@ module RegFile(
 
     integer i;
 
-    integer file;
-    initial begin
-        file=$fopen("regfile.txt", "w");
-    end
+    // integer file;
+    // initial begin
+    //     file=$fopen("regfile.txt", "w");
+    // end
 
     //answer decoder (consider ROB commit and register store)
     // assign rs1_busy=(is_commit?((commit_rd==call_rs1&&reg_rob_id[call_rs1]==commit_rob_id)?0:1):0);

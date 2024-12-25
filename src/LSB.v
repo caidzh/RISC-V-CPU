@@ -105,10 +105,10 @@ module LSB(
         lsb_full=(nxt_head==nxt_tail)&&!nxt_empty;
     end
 
-    integer file;
-    initial begin
-        file=$fopen("LSB.txt", "w");
-    end
+    // integer file;
+    // initial begin
+    //     file=$fopen("LSB.txt", "w");
+    // end
 
     always @(posedge clk)begin
         head<=nxt_head;

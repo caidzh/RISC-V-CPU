@@ -96,10 +96,10 @@ module ROB(
     assign rs2_data=(is_call_rs2?(rob_busy[call_rs2_rob_id]?rob_rd_data[call_rs2_rob_id]:0):0);
     assign rd_rob_id=tail;
 
-    integer file;
-    initial begin
-        file=$fopen("verilog.txt", "w");
-    end
+    // integer file;
+    // initial begin
+    //     file=$fopen("verilog.txt", "w");
+    // end
 
     integer i;
     always @(posedge clk)begin
