@@ -49,6 +49,12 @@ wire ALU_out_is_jump;
 wire [`ADDR_WID] ALU_out_pc;
 wire [`ROB_ID_WID] ALU_out_rob_target;
 
+//cdecoder output
+output wire cdecoder_out_inst_valid;
+output wire [`INST_WID] cdecoder_out_inst;
+output wire cdecoder_out_inst_predict_jump;
+output wire [`ADDR_WID] cdecoder_out_inst_pc;
+
 //decoder output
 wire decoder_valid;
 wire [`OPCODE_WID] decoder_opcode;
@@ -176,14 +182,29 @@ ALU t_ALU(
   .out_rob_target(ALU_out_rob_target)
 );
 
-Decoder t_Decoder(
+cDecoder t_cDecoder(
   .rst(rst_in),
   .rdy(rdy_in),
+  .clk(clk_in),
   .rollback(rollback),
   .inst_valid(ifetch_out_inst_valid),
   .inst(ifetch_out_inst),
   .inst_predict_jump(ifetch_out_inst_predict_jump),
   .inst_pc(ifetch_out_inst_pc),
+  .out_inst_valid(cdecoder_out_inst_valid),
+  .out_inst(cdecoder_out_inst),
+  .out_inst_predict_jump(cdecoder_out_inst_predict_jump),
+  .out_inst_pc(cdecoder_out_inst_pc)
+);
+
+Decoder t_Decoder(
+  .rst(rst_in),
+  .rdy(rdy_in),
+  .rollback(rollback),
+  .inst_valid(cdecoder_out_inst_valid),
+  .inst(cdecoder_out_inst),
+  .inst_predict_jump(cdecoder_out_inst_predict_jump),
+  .inst_pc(cdecoder_out_inst_pc),
   .valid(decoder_valid),
   .opcode(decoder_opcode),
   .func3(decoder_func3),

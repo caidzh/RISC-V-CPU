@@ -69,7 +69,11 @@ module IFetch(
     assign bp_index=ifetch_pc[`BP_INDEX_RANGE];
     assign hit=(busy[pc_index]&&blk_tag[pc_index]==pc_tag);
     assign fetch_inst=cur_block[pc_off];
-    assign fetch_inst_is_branch=(fetch_inst[`OPCODE_RANGE]==`OPCODE_JAL||fetch_inst[`OPCODE_RANGE]==`OPCODE_B);
+    assign fetch_inst_is_branch=(fetch_inst[`C_OP_RANGE]!=2'b11&&(fetch_inst[`OPCODE_RANGE]==`OPCODE_JAL||fetch_inst[`OPCODE_RANGE]==`OPCODE_B))||
+    (fetch_inst[`C_OP_RANGE]==2'b11&&((fetch_inst[`C_FUNC3_RANGE]==3'b110&&fetch_inst[`OP_C_RANGE]==2'b01)||
+    (fetch_inst[`C_FUNC3_RANGE]==3'b111&&fetch_inst[`OP_C_RANGE]==2'b01)||
+    (fetch_inst[`C_FUNC3_RANGE]==3'b001&&fetch_inst[`OP_C_RANGE]==2'b01)||
+    (fetch_inst[`C_FUNC3_RANGE]==3'b101&&fetch_inst[`OP_C_RANGE]==2'b01)));
     assign mem_find_addr_index=mem_find_addr[`CACHE_INDEX_RANGE];
     assign mem_find_addr_tag=mem_find_addr[`CACHE_TAG_RANGE];
 
@@ -86,24 +90,45 @@ module IFetch(
     //J imm[20|10:1|11|19:12] rd opcode
     //B imm[12|10:5] rs2 rs1 funct3 imm[4:1|11] opcode
     always @(*)begin
-        predict_pc=ifetch_pc+4;
+        if(fetch_inst[`C_OP_RANGE]==2'b11)
+            predict_pc=ifetch_pc+2;
+        else
+            predict_pc=ifetch_pc+4;
         ifetch_predict_jump=0;
         if(fetch_inst_is_branch)begin
-            case(fetch_inst[`OPCODE_RANGE])
-                `OPCODE_JAL:begin
-                    predict_pc=ifetch_pc+{{12{fetch_inst[31]}},fetch_inst[19:12],fetch_inst[20],fetch_inst[30:21],1'b0};
-                    ifetch_predict_jump=1;
-                end
-                `OPCODE_B:begin
-                    if(tracker[bp_index]>=2'd2)begin
-                        predict_pc=ifetch_pc+{{20{fetch_inst[31]}},fetch_inst[7],fetch_inst[30:25],fetch_inst[11:8],1'b0};
+            if(fetch_inst[`C_OP_RANGE]!=2'b11)begin
+                case(fetch_inst[`OPCODE_RANGE])
+                    `OPCODE_JAL:begin
+                        predict_pc=ifetch_pc+{{12{fetch_inst[31]}},fetch_inst[19:12],fetch_inst[20],fetch_inst[30:21],1'b0};
                         ifetch_predict_jump=1;
-                    end else begin
-                        predict_pc=ifetch_pc+4;
-                        ifetch_predict_jump=0;
                     end
-                end
-            endcase
+                    `OPCODE_B:begin
+                        if(tracker[bp_index]>=2'd2)begin
+                            predict_pc=ifetch_pc+{{20{fetch_inst[31]}},fetch_inst[7],fetch_inst[30:25],fetch_inst[11:8],1'b0};
+                            ifetch_predict_jump=1;
+                        end else begin
+                            predict_pc=ifetch_pc+4;
+                            ifetch_predict_jump=0;
+                        end
+                    end
+                endcase
+            end else begin
+                case(fetch_inst[`C_FUNC3_RANGE])
+                    3'b110,3'b111:begin
+                        if(tracker[bp_index]>=2'd2)begin
+                            predict_pc=ifetch_pc+{{24{fetch_inst[12]}},fetch_inst[6:5],fetch_inst[2],fetch_inst[11:10],fetch_inst[4:3],1'b0};
+                            ifetch_predict_jump=1;
+                        end else begin
+                            predict_pc=ifetch_pc+2;
+                            ifetch_predict_jump=0;
+                        end
+                    end
+                    3'b001,3'b101:begin
+                        predict_pc=ifetch_pc+{{21{fetch_inst[12]}},fetch_inst[8],fetch_inst[10:9],fetch_inst[6],fetch_inst[7],fetch_inst[2],fetch_inst[10],fetch_inst[5:3],1'b0};
+                        ifetch_predict_jump=1;
+                    end
+                endcase
+            end
         end
     end
 

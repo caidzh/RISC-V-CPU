@@ -107,4 +107,8 @@
 `define FUNC3_BLTU 3'h6
 `define FUNC3_BGEU 3'h7
 
+// RISC-VC
+`define C_OP_RANGE 1:0
+`define C_FUNC3_RANGE 15:13
+
 `endif
