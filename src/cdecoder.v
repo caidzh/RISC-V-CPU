@@ -15,10 +15,10 @@ module cDecoder(
     input wire [`ADDR_WID] inst_pc,
 
     //to decoder
-    output wire out_inst_valid,
-    output wire [`INST_WID] out_inst,
-    output wire out_inst_predict_jump,
-    output wire [`ADDR_WID] out_inst_pc
+    output reg out_inst_valid,
+    output reg [`INST_WID] out_inst,
+    output reg out_inst_predict_jump,
+    output reg [`ADDR_WID] out_inst_pc
 );
 
     reg [`REG_ID_WID] rs1;
@@ -26,12 +26,12 @@ module cDecoder(
     reg [`REG_ID_WID] rd;
     reg [`DATA_WID] imm;
     always @(*)begin
-        //decode
+        // decode
         rs1=0;
         rs2=0;
         rd=0;
         imm=0;
-        if(inst_valid&&inst[`OP_C_RANGE]!=2'b11)begin
+        if(inst_valid&&inst[`C_OP_RANGE]!=2'b11)begin
             // add
             if(inst[15:12]==4'b1001&&inst[`C_OP_RANGE]==2'b10)begin
                 rs1=inst[11:7];
@@ -45,7 +45,7 @@ module cDecoder(
                 rd=inst[11:7]+8;
             end
             // jr
-            if(extend&&inst[`C_FUNC3_RANGE]==3'b100&&inst[12]==0&&inst[`C_OP_RANGE]==2'b10)begin
+            if(inst[`C_FUNC3_RANGE]==3'b100&&inst[12]==0&&inst[`C_OP_RANGE]==2'b10)begin
                 rs1=inst[11:7];
                 rd=0;
                 imm=0;
@@ -86,19 +86,19 @@ module cDecoder(
                 imm={inst[12],inst[6:2],12'b0};
             end
             // srli
-            if(inst[`C_FUNC3_RANGE]==3'b100&&inst[`C_OP_RANGE]==2'b01&&inst[11:10]=2'b00)begin
+            if(inst[`C_FUNC3_RANGE]==3'b100&&inst[`C_OP_RANGE]==2'b01&&inst[11:10]==2'b00)begin
                 rs1=inst[9:7]+8;
                 rd=inst[9:7]+8;
                 imm={inst[12],inst[6:2]};
             end
             // srai
-            if(inst[`C_FUNC3_RANGE]==3'b100&&inst[`C_OP_RANGE]==2'b01&&inst[11:10]=2'b01)begin
+            if(inst[`C_FUNC3_RANGE]==3'b100&&inst[`C_OP_RANGE]==2'b01&&inst[11:10]==2'b01)begin
                 rs1=inst[9:7]+8;
                 rd=inst[9:7]+8;
                 imm={inst[12],inst[6:2]};
             end
             // andi
-            if(inst[`C_FUNC3_RANGE]==3'b100&&inst[`C_OP_RANGE]==2'b01&&inst[11:10]=2'b10)begin
+            if(inst[`C_FUNC3_RANGE]==3'b100&&inst[`C_OP_RANGE]==2'b01&&inst[11:10]==2'b10)begin
                 rs1=inst[9:7]+8;
                 rd=inst[9:7]+8;
                 imm={inst[12],inst[6:2]};
@@ -158,16 +158,16 @@ module cDecoder(
         end
     end
 
-    always @(posedge clk)begin
+    always @(*)begin
         out_inst_valid<=0;
         if(!rst&&rdy&&!rollback&&inst_valid)begin
             out_inst_valid<=inst_valid;
             out_inst_predict_jump<=inst_predict_jump;
             out_inst_pc<=inst_pc;
-            if(inst[`OP_C_RANGE]!=2'b11)begin
+            if(inst[`C_OP_RANGE]==2'b11)begin
                 out_inst<=inst;
             end else begin
-                //decode and encode
+                // encode
                 // add
                 if(inst[15:12]==4'b1001&&inst[`C_OP_RANGE]==2'b10)begin
                     //add
@@ -184,7 +184,7 @@ module cDecoder(
                     endcase
                 end
                 // jr
-                if(extend&&inst[`C_FUNC3_RANGE]==3'b100&&inst[12]==0&&inst[`C_OP_RANGE]==2'b10)begin
+                if(inst[`C_FUNC3_RANGE]==3'b100&&inst[12]==0&&inst[`C_OP_RANGE]==2'b10)begin
                     //jalr
                     out_inst<={imm[11:0],rs1,3'b000,rd,`OPCODE_JALR};
                 end
@@ -219,17 +219,17 @@ module cDecoder(
                     out_inst<={imm[31:12],rd,`OPCODE_LUI};
                 end
                 // srli
-                if(inst[`C_FUNC3_RANGE]==3'b100&&inst[`C_OP_RANGE]==2'b01&&inst[11:10]=2'b00)begin
+                if(inst[`C_FUNC3_RANGE]==3'b100&&inst[`C_OP_RANGE]==2'b01&&inst[11:10]==2'b00)begin
                     //srli
                     out_inst<={7'b0,imm[4:0],rs1,3'b101,rd,`OPCODE_ARITHI};
                 end
                 // srai
-                if(inst[`C_FUNC3_RANGE]==3'b100&&inst[`C_OP_RANGE]==2'b01&&inst[11:10]=2'b01)begin
+                if(inst[`C_FUNC3_RANGE]==3'b100&&inst[`C_OP_RANGE]==2'b01&&inst[11:10]==2'b01)begin
                     //srai
                     out_inst<={7'b0100000,imm[4:0],rs1,3'b101,rd,`OPCODE_ARITHI};
                 end
                 // andi
-                if(inst[`C_FUNC3_RANGE]==3'b100&&inst[`C_OP_RANGE]==2'b01&&inst[11:10]=2'b10)begin
+                if(inst[`C_FUNC3_RANGE]==3'b100&&inst[`C_OP_RANGE]==2'b01&&inst[11:10]==2'b10)begin
                     //andi
                     out_inst<={imm[11:0],rs1,3'b111,rd,`OPCODE_ARITHI};
                 end

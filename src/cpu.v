@@ -50,10 +50,10 @@ wire [`ADDR_WID] ALU_out_pc;
 wire [`ROB_ID_WID] ALU_out_rob_target;
 
 //cdecoder output
-output wire cdecoder_out_inst_valid;
-output wire [`INST_WID] cdecoder_out_inst;
-output wire cdecoder_out_inst_predict_jump;
-output wire [`ADDR_WID] cdecoder_out_inst_pc;
+wire cdecoder_out_inst_valid;
+wire [`INST_WID] cdecoder_out_inst;
+wire cdecoder_out_inst_predict_jump;
+wire [`ADDR_WID] cdecoder_out_inst_pc;
 
 //decoder output
 wire decoder_valid;
