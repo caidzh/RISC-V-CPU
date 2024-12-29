@@ -54,6 +54,7 @@ wire cdecoder_out_inst_valid;
 wire [`INST_WID] cdecoder_out_inst;
 wire cdecoder_out_inst_predict_jump;
 wire [`ADDR_WID] cdecoder_out_inst_pc;
+wire cdecoder_out_is_c_extend;
 
 //decoder output
 wire decoder_valid;
@@ -76,6 +77,7 @@ wire [`ROB_ID_WID] decoder_rd_rob_id;
 wire [`DATA_WID] decoder_imm;
 wire [`DATA_WID] decoder_off;
 wire [`ADDR_WID] decoder_pc;
+wire decoder_is_c_extend;
 wire decoder_is_branch;
 wire decoder_is_predict_jump;
 wire decoder_is_store;
@@ -159,6 +161,7 @@ wire [`DATA_WID] RS_exe_imm;
 wire [`DATA_WID] RS_exe_off;
 wire [`ADDR_WID] RS_exe_pc;
 wire [`ROB_ID_WID] RS_exe_rob_target;
+wire RS_is_c_extend;
 
 ALU t_ALU(
   .clk(clk_in),
@@ -179,7 +182,8 @@ ALU t_ALU(
   .out_data(ALU_out_data),
   .out_is_jump(ALU_out_is_jump),
   .out_pc(ALU_out_pc),
-  .out_rob_target(ALU_out_rob_target)
+  .out_rob_target(ALU_out_rob_target),
+  .is_c_extend(RS_is_c_extend)
 );
 
 cDecoder t_cDecoder(
@@ -194,7 +198,8 @@ cDecoder t_cDecoder(
   .out_inst_valid(cdecoder_out_inst_valid),
   .out_inst(cdecoder_out_inst),
   .out_inst_predict_jump(cdecoder_out_inst_predict_jump),
-  .out_inst_pc(cdecoder_out_inst_pc)
+  .out_inst_pc(cdecoder_out_inst_pc),
+  .is_c_extend(cdecoder_out_is_c_extend)
 );
 
 Decoder t_Decoder(
@@ -205,6 +210,7 @@ Decoder t_Decoder(
   .inst(cdecoder_out_inst),
   .inst_predict_jump(cdecoder_out_inst_predict_jump),
   .inst_pc(cdecoder_out_inst_pc),
+  .inst_is_c_extend(cdecoder_out_is_c_extend),
   .valid(decoder_valid),
   .opcode(decoder_opcode),
   .func3(decoder_func3),
@@ -225,6 +231,7 @@ Decoder t_Decoder(
   .imm(decoder_imm),
   .off(decoder_off),
   .pc(decoder_pc),
+  .is_c_extend(decoder_is_c_extend),
   .is_branch(decoder_is_branch),
   .is_predict_jump(decoder_is_predict_jump),
   .is_store(decoder_is_store),
@@ -440,6 +447,7 @@ RS t_RS(
   .inst_imm(decoder_imm),
   .inst_off(decoder_off),
   .inst_pc(decoder_pc),
+  .inst_is_c_extend(decoder_is_c_extend),
   .alu_valid(ALU_out_is_data),
   .alu_rob_id(ALU_out_rob_target),
   .alu_data(ALU_out_data),
@@ -455,7 +463,8 @@ RS t_RS(
   .exe_imm(RS_exe_imm),
   .exe_off(RS_exe_off),
   .exe_pc(RS_exe_pc),
-  .exe_rob_target(RS_exe_rob_target)
+  .exe_rob_target(RS_exe_rob_target),
+  .exe_is_c_extend(RS_is_c_extend)
 );
 
 endmodule

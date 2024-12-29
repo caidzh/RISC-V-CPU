@@ -19,6 +19,7 @@ module ALU(
     input wire [`DATA_WID] off,
     input wire [`ADDR_WID] pc,
     input wire [`ROB_ID_WID] rob_target,
+    input wire is_c_extend,
     
     output reg out_is_data,
     output reg [`DATA_WID] out_data,
@@ -85,15 +86,24 @@ module ALU(
                     end
                     `OPCODE_B:begin
                         out_is_jump<=is_jump;
-                        out_pc<=is_jump?pc+off:pc+4;
+                        if(!is_c_extend)
+                            out_pc<=is_jump?pc+off:pc+4;
+                        else
+                            out_pc<=is_jump?pc+off:pc+2;
                     end
                     `OPCODE_JAL:begin
-                        out_data<=pc+4;
+                        if(!is_c_extend)
+                            out_data<=pc+4;
+                        else
+                            out_data<=pc+2;
                         out_is_jump<=1;
                         out_pc<=pc+off;
                     end
                     `OPCODE_JALR:begin 
-                        out_data<=pc+4;
+                        if(!is_c_extend)
+                            out_data<=pc+4;
+                        else
+                            out_data<=pc+2;
                         out_is_jump<=1;
                         out_pc<=(data1+imm)&(~1);
                     end

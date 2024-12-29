@@ -166,13 +166,13 @@ module LSB(
             //MemCtrl respond
             // if(!empty)begin
             //     $fwrite(file,"LSB ------\n");
-            //     $fwrite(file,"%d %d %d\n",head,tail,empty);
+            //     $fwrite(file,"head=%d tail=%d empty=%d\n",head,tail,empty);
             //     for(i=0;i<`LSB_SZ;i=i+1)begin
-            //         if(busy[i]&&lsb_is_store[i])begin
+            //         if(busy[i])begin
             //             $fwrite(file,"%h %b %h %h\n",i,lsb_opcode[i],lsb_rd_id[i],lsb_pc[i]);
             //         end
             //     end
-            //     $display("------");
+            //     $fwrite(file,"------\n");
             // end
             //decoder to LSB
             if(inst_valid)begin
@@ -203,7 +203,7 @@ module LSB(
                     call_valid<=1;
                     call_is_store<=lsb_is_store[head];
                     call_addr<=lsb_rs1_data[head]+lsb_imm[head];
-                    // $display("execute %b %h->%h",lsb_is_store[head],lsb_rs1_data[head]+lsb_imm[head],lsb_rs2_data[head]);
+                    // $fwrite(file,"%h execute %b %h->%h\n",lsb_pc[head],lsb_is_store[head],lsb_rs1_data[head]+lsb_imm[head],lsb_rs2_data[head]);
                     case(lsb_func3[head])
                         `FUNC3_LB,`FUNC3_LBU:call_len<=1;
                         `FUNC3_LH,`FUNC3_LHU:call_len<=2;

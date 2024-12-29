@@ -12,6 +12,7 @@ module Decoder(
     input wire [`INST_WID] inst,
     input wire inst_predict_jump,
     input wire [`ADDR_WID] inst_pc,
+    input wire inst_is_c_extend,
 
     //decode
     output reg valid,
@@ -38,6 +39,7 @@ module Decoder(
     output reg is_predict_jump,
     output reg is_store,
     output reg can_commit,
+    output reg is_c_extend,
 
     //ALU provide register information
     input wire alu_data_valid,
@@ -106,6 +108,7 @@ module Decoder(
         is_predict_jump=inst_predict_jump;
         pc=inst_pc;
         rd_rob_id=rob_rd_rob_id;
+        is_c_extend=inst_is_c_extend;
         rs1_depend_rob=0;
         rs2_depend_rob=0;
         to_rs=0;
@@ -120,7 +123,7 @@ module Decoder(
         is_branch=0;
         if(!rst&&rdy&&!rollback&&inst_valid)begin
             valid=1;
-            //debug
+            // debug
             // case(inst[`OPCODE_RANGE])
             //     `OPCODE_ARITH:begin
             //         $display("decode ARITH %d",rd_rob_id);

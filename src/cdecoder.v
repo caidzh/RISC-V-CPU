@@ -18,7 +18,8 @@ module cDecoder(
     output reg out_inst_valid,
     output reg [`INST_WID] out_inst,
     output reg out_inst_predict_jump,
-    output reg [`ADDR_WID] out_inst_pc
+    output reg [`ADDR_WID] out_inst_pc,
+    output reg is_c_extend
 );
 
     reg [`REG_ID_WID] rs1;
@@ -32,29 +33,35 @@ module cDecoder(
         rd=0;
         imm=0;
         if(inst_valid&&inst[`C_OP_RANGE]!=2'b11)begin
-            // add
+            // add(ok)
             if(inst[15:12]==4'b1001&&inst[`C_OP_RANGE]==2'b10)begin
                 rs1=inst[11:7];
                 rs2=inst[6:2];
                 rd=inst[11:7];
             end
-            // arith except add
-            if(inst[15:10]==6'b100011&&inst[`C_OP_RANGE]==2'b01)begin
-                rs1=inst[11:7]+8;
-                rs2=inst[6:2]+8;
-                rd=inst[11:7]+8;
+            // addi(ok)
+            if(inst[`C_FUNC3_RANGE]==3'b000&&inst[`C_OP_RANGE]==2'b01)begin
+                rs1=inst[11:7];
+                rd=inst[11:7];
+                imm={inst[12],inst[6:2]};
             end
-            // jr
-            if(inst[`C_FUNC3_RANGE]==3'b100&&inst[12]==0&&inst[`C_OP_RANGE]==2'b10)begin
+            // arith except add(ok)
+            if(inst[15:10]==6'b100011&&inst[`C_OP_RANGE]==2'b01)begin
+                rs1=inst[9:7]+8;
+                rs2=inst[4:2]+8;
+                rd=inst[9:7]+8;
+            end
+            // jr(ok)
+            if(inst[`C_FUNC3_RANGE]==3'b100&&inst[12]==0&&inst[11:7]!=0&&inst[6:2]==0&&inst[`C_OP_RANGE]==2'b10)begin
                 rs1=inst[11:7];
                 rd=0;
                 imm=0;
             end
-            // mv
-            if(inst[`C_FUNC3_RANGE]==3'b100&&inst[12]==0&&inst[`C_OP_RANGE]==2'b10)begin
+            // mv(ok)
+            if(inst[`C_FUNC3_RANGE]==3'b100&&inst[12]==0&&inst[6:2]!=0&&inst[`C_OP_RANGE]==2'b10)begin
                 rs1=inst[6:2];
-                rs2=0;
                 rd=inst[11:7];
+                imm=0;
             end
             // jalr
             if(inst[`C_FUNC3_RANGE]==3'b100&&inst[12]==1&&inst[6:2]==0&&inst[`C_OP_RANGE]==2'b10)begin
@@ -62,23 +69,23 @@ module cDecoder(
                 rd=1;
                 imm=0;
             end
-            // swsp
+            // swsp(ok)
             if(inst[`C_FUNC3_RANGE]==3'b110&&inst[`C_OP_RANGE]==2'b10)begin
                 rs1=2;
                 rs2=inst[6:2];
-                imm={inst[12:11],inst[10:7],2'b00};
+                imm={inst[8:7],inst[12:9],2'b00};//*
             end
-            // li
+            // li(ok)
             if(inst[`C_FUNC3_RANGE]==3'b010&&inst[`C_OP_RANGE]==2'b01)begin
                 rs1=0;
                 rd=inst[11:7];
-                imm={inst[12],inst[6:2]};
+                imm={inst[12],inst[6:2]};//*
             end
-            // addi16sp
+            // addi16sp(ok)
             if(inst[`C_FUNC3_RANGE]==3'b011&&inst[`C_OP_RANGE]==2'b01&&inst[11:7]==2)begin
                 rs1=2;
                 rd=2;
-                imm=({inst[12],inst[4:3],inst[5],inst[2],inst[6],4'b0000}<<4);//*
+                imm={inst[12],inst[4:3],inst[5],inst[2],inst[6],4'b0000};//*
             end
             // lui
             if(inst[`C_FUNC3_RANGE]==3'b011&&inst[`C_OP_RANGE]==2'b01&&inst[11:7]!=2)begin
@@ -103,60 +110,69 @@ module cDecoder(
                 rd=inst[9:7]+8;
                 imm={inst[12],inst[6:2]};
             end
-            // slli
+            // slli(ok)
             if(inst[`C_FUNC3_RANGE]==3'b000&&inst[`C_OP_RANGE]==2'b10)begin
                 rs1=inst[11:7];
                 rd=inst[11:7];
                 imm={inst[12],inst[6:2]};
             end
-            // lwsp
+            // lwsp(ok)
             if(inst[`C_FUNC3_RANGE]==3'b010&&inst[`C_OP_RANGE]==2'b10)begin
                 rs1=2;
                 rd=inst[11:7];
-                imm={inst[3:2],inst[12],inst[6:4]};
+                imm={inst[3:2],inst[12],inst[6:4],2'b00};
             end
-            // addi4spn
+            // addi4spn(ok)
             if(inst[`C_FUNC3_RANGE]==3'b000&&inst[`C_OP_RANGE]==2'b00)begin
                 rs1=2;
                 rd=inst[4:2]+8;
-                imm=({inst[10:7],inst[12:11],inst[5],inst[6],2'b00}<<2);//*
+                imm={inst[10:7],inst[12:11],inst[5],inst[6],2'b00};//*
             end
-            // lw
+            // lw(ok)
             if(inst[`C_FUNC3_RANGE]==3'b010&&inst[`C_OP_RANGE]==2'b00)begin
                 rs1=inst[9:7]+8;
                 rd=inst[4:2]+8;
-                imm={inst[5],inst[12:10],inst[6],2'b00};
+                imm={inst[5],inst[12:10],inst[6],2'b00};//*
             end
-            // sw
+            // sw(ok)
             if(inst[`C_FUNC3_RANGE]==3'b110&&inst[`C_OP_RANGE]==2'b00)begin
-                rs1=inst[4:2]+8;
-                rs2=inst[9:7]+8;
-                imm=({inst[5],inst[12:10],inst[6],2'b00}<<2);//*
+                //04e7a023
+                //c3b8 1100 0011 1001 1000
+                //sw	a4,64(a5)
+                //rs1'=7,rs2'=6
+                rs1=inst[9:7]+8;
+                rs2=inst[4:2]+8;
+                imm={inst[5],inst[12:10],inst[6],2'b00};//*
             end
-            // beqz
+            // beqz(ok)
             if(inst[`C_FUNC3_RANGE]==3'b110&&inst[`C_OP_RANGE]==2'b01)begin
                 rs1=inst[9:7]+8;
                 rs2=0;
-                imm=({inst[12],inst[6:5],inst[2],inst[11:10],inst[4:3],1'b0}<<1);//*
+                imm={inst[12],inst[6:5],inst[2],inst[11:10],inst[4:3],1'b0};//*
             end
-            // bnez
+            // bnez(ok)
             if(inst[`C_FUNC3_RANGE]==3'b111&&inst[`C_OP_RANGE]==2'b01)begin
                 rs1=inst[9:7]+8;
                 rs2=0;
-                imm=({inst[12],inst[6:5],inst[2],inst[11:10],inst[4:3],1'b0}<<1);//*
+                imm={inst[12],inst[6:5],inst[2],inst[11:10],inst[4:3],1'b0};//*
             end
-            // jal
+            // jal(ok)
             if(inst[`C_FUNC3_RANGE]==3'b001&&inst[`C_OP_RANGE]==2'b01)begin
                 rd=1;
-                imm=({inst[12],inst[8],inst[10:9],inst[6],inst[7],inst[2],inst[11],inst[5:3],1'b0}<<1);//*
+                imm={inst[12],inst[8],inst[10:9],inst[6],inst[7],inst[2],inst[11],inst[5:3],1'b0};//*
             end
-            // j
+            // j(ok)
             if(inst[`C_FUNC3_RANGE]==3'b101&&inst[`C_OP_RANGE]==2'b01)begin
                 rd=0;
-                imm=({inst[12],inst[8],inst[10:9],inst[6],inst[7],inst[2],inst[11],inst[5:3],1'b0}<<1);//*
+                imm={inst[12],inst[8],inst[10:9],inst[6],inst[7],inst[2],inst[11],inst[5:3],1'b0};//*
             end
         end
     end
+
+    // integer file;
+    // initial begin
+    //     file=$fopen("cdecoder.txt", "w");
+    // end
 
     always @(*)begin
         out_inst_valid<=0;
@@ -165,117 +181,186 @@ module cDecoder(
             out_inst_predict_jump<=inst_predict_jump;
             out_inst_pc<=inst_pc;
             if(inst[`C_OP_RANGE]==2'b11)begin
+                // $fwrite(file,"no need to encode %h %h\n",inst,inst_pc);
+                // $fwrite(file,"%h\n",inst);
+                is_c_extend<=0;
                 out_inst<=inst;
             end else begin
+                is_c_extend<=1;
+                // $fwrite(file,"decode and encode %h %h\n",inst[15:0],inst_pc);
                 // encode
-                // add
+                // add(ok)
                 if(inst[15:12]==4'b1001&&inst[`C_OP_RANGE]==2'b10)begin
                     //add
+                    // $fwrite(file,"add\n");
                     out_inst<={7'b0,rs2,rs1,`FUNC3_ADD,rd,`OPCODE_ARITH};
+                    // $fwrite(file,"%h\n",{7'b0,rs2,rs1,`FUNC3_ADD,rd,`OPCODE_ARITH});
                 end
-                // arith except add
+                // addi
+                if(inst[`C_FUNC3_RANGE]==3'b000&&inst[`C_OP_RANGE]==2'b01)begin
+                    // $fwrite(file,"addi\n");
+                    out_inst<={{7{imm[5]}},imm[4:0],rs1,`FUNC3_ADD,rd,`OPCODE_ARITHI};
+                    //00040d13
+                    // $fwrite(file,"%h\n",{{7{imm[5]}},imm[4:0],rs1,`FUNC3_ADD,rd,`OPCODE_ARITHI});
+                end
+                // arith except add(ok)
                 if(inst[15:10]==6'b100011&&inst[`C_OP_RANGE]==2'b01)begin
                     //sub/xor/or/and
+                    // $fwrite(file,"arith except add\n");
+                    //40d70733
                     case(inst[6:5])
-                        2'b00:out_inst<={7'b0,rs2,rs1,`FUNC3_SUB,rd,`OPCODE_ARITH};
-                        2'b01:out_inst<={7'b0,rs2,rs1,`FUNC3_XOR,rd,`OPCODE_ARITH};
-                        2'b10:out_inst<={7'b0,rs2,rs1,`FUNC3_OR,rd,`OPCODE_ARITH};
-                        2'b11:out_inst<={7'b0,rs2,rs1,`FUNC3_AND,rd,`OPCODE_ARITH};
+                        2'b00:begin
+                            out_inst<={7'b0100000,rs2,rs1,`FUNC3_SUB,rd,`OPCODE_ARITH};
+                            // $fwrite(file,"%h\n",{7'b0100000,rs2,rs1,`FUNC3_SUB,rd,`OPCODE_ARITH});
+                        end
+                        2'b01:begin
+                            out_inst<={7'b0,rs2,rs1,`FUNC3_XOR,rd,`OPCODE_ARITH};
+                            // $fwrite(file,"%h\n",{7'b0,rs2,rs1,`FUNC3_XOR,rd,`OPCODE_ARITH});
+                        end
+                        2'b10:begin
+                            out_inst<={7'b0,rs2,rs1,`FUNC3_OR,rd,`OPCODE_ARITH};
+                            // $fwrite(file,"%h\n",{7'b0,rs2,rs1,`FUNC3_OR,rd,`OPCODE_ARITH});
+                        end
+                        2'b11:begin
+                            out_inst<={7'b0,rs2,rs1,`FUNC3_AND,rd,`OPCODE_ARITH};
+                            // $fwrite(file,"%h\n",{7'b0,rs2,rs1,`FUNC3_AND,rd,`OPCODE_ARITH});
+                        end
                     endcase
                 end
-                // jr
-                if(inst[`C_FUNC3_RANGE]==3'b100&&inst[12]==0&&inst[`C_OP_RANGE]==2'b10)begin
+                // jr(ok)
+                if(inst[`C_FUNC3_RANGE]==3'b100&&inst[12]==0&&inst[11:7]!=0&&inst[6:2]==0&&inst[`C_OP_RANGE]==2'b10)begin
                     //jalr
+                    // $fwrite(file,"jr\n");
                     out_inst<={imm[11:0],rs1,3'b000,rd,`OPCODE_JALR};
+                    // $fwrite(file,"%h\n",{imm[11:0],rs1,3'b000,rd,`OPCODE_JALR});
                 end
-                // mv
-                if(inst[`C_FUNC3_RANGE]==3'b100&&inst[12]==0&&inst[`C_OP_RANGE]==2'b10)begin
-                    //add
-                    out_inst<={7'b0,rs2,rs1,`FUNC3_ADD,rd,`OPCODE_ARITH};
+                // mv(ok)
+                if(inst[`C_FUNC3_RANGE]==3'b100&&inst[12]==0&&inst[6:2]!=0&&inst[`C_OP_RANGE]==2'b10)begin
+                    //addi
+                    // $fwrite(file,"mv\n");
+                    out_inst<={11'b0,rs1,`FUNC3_ADD,rd,`OPCODE_ARITHI};
+                    // $fwrite(file,"%h\n",{7'b0,rs2,rs1,`FUNC3_ADD,rd,`OPCODE_ARITHI});
                 end
-                // jalr
+                // jalr(ok)
                 if(inst[`C_FUNC3_RANGE]==3'b100&&inst[12]==1&&inst[6:2]==0&&inst[`C_OP_RANGE]==2'b10)begin
                     //jalr
+                    // $fwrite(file,"jalr\n");
                     out_inst<={imm[11:0],rs1,3'b000,rd,`OPCODE_JALR};
+                    // $fwrite(file,"%h\n",{imm[11:0],rs1,3'b000,rd,`OPCODE_JALR});
                 end
                 // swsp
                 if(inst[`C_FUNC3_RANGE]==3'b110&&inst[`C_OP_RANGE]==2'b10)begin
                     //sw
-                    out_inst<={imm[11:5],rs2,rs1,3'b010,imm[4:0],`OPCODE_S};
+                    // $fwrite(file,"swsp\n");
+                    out_inst<={imm[11:5],rs2,rs1,3'b010,imm[4:0],`OPCODE_S};//unsigned
+                    // $fwrite(file,"%h\n",{imm[11:5],rs2,rs1,3'b010,imm[4:0],`OPCODE_S});
                 end
-                // li
+                // li(ok)
                 if(inst[`C_FUNC3_RANGE]==3'b010&&inst[`C_OP_RANGE]==2'b01)begin
                     //addi
-                    out_inst<={imm[11:0],rs1,3'b000,rd,`OPCODE_ARITHI};
+                    // $fwrite(file,"li\n");
+                    out_inst<={{6{imm[5]}},imm[5:0],rs1,3'b000,rd,`OPCODE_ARITHI};//sext
+                    // $fwrite(file,"%h\n",{{6{imm[5]}},imm[5:0],rs1,3'b000,rd,`OPCODE_ARITHI});
                 end
-                // addi16sp
+                // addi16sp(ok)
                 if(inst[`C_FUNC3_RANGE]==3'b011&&inst[`C_OP_RANGE]==2'b01&&inst[11:7]==2)begin
                     //addi
-                    out_inst<={imm[11:0],rs1,3'b000,rd,`OPCODE_ARITHI};
+                    // $fwrite(file,"addi16sp\n");
+                    out_inst<={{2{imm[9]}},imm[9:0],rs1,3'b000,rd,`OPCODE_ARITHI};//sext
+                    // $fwrite(file,"%h\n",{{2{imm[9]}},imm[9:0],rs1,3'b000,rd,`OPCODE_ARITHI});
                 end
-                // lui
+                // lui(ok)
                 if(inst[`C_FUNC3_RANGE]==3'b011&&inst[`C_OP_RANGE]==2'b01&&inst[11:7]!=2)begin
                     //lui
-                    out_inst<={imm[31:12],rd,`OPCODE_LUI};
+                    // $fwrite(file,"lui\n");
+                    out_inst<={{14{imm[17]}},imm[17:12],rd,`OPCODE_LUI};//sext
+                    // $fwrite(file,"%h\n",{{14{imm[17]}},imm[17:12],rd,`OPCODE_LUI});
                 end
                 // srli
                 if(inst[`C_FUNC3_RANGE]==3'b100&&inst[`C_OP_RANGE]==2'b01&&inst[11:10]==2'b00)begin
                     //srli
-                    out_inst<={7'b0,imm[4:0],rs1,3'b101,rd,`OPCODE_ARITHI};
+                    // $fwrite(file,"srli\n");
+                    out_inst<={7'b0,imm[4:0],rs1,3'b101,rd,`OPCODE_ARITHI};//unsigned
+                    // $fwrite(file,"%h\n",{7'b0,imm[4:0],rs1,3'b101,rd,`OPCODE_ARITHI});
                 end
                 // srai
                 if(inst[`C_FUNC3_RANGE]==3'b100&&inst[`C_OP_RANGE]==2'b01&&inst[11:10]==2'b01)begin
                     //srai
-                    out_inst<={7'b0100000,imm[4:0],rs1,3'b101,rd,`OPCODE_ARITHI};
+                    // $fwrite(file,"srai\n");
+                    out_inst<={7'b0100000,imm[4:0],rs1,3'b101,rd,`OPCODE_ARITHI};//unsigned
+                    // $fwrite(file,"%h\n",{7'b0100000,imm[4:0],rs1,3'b101,rd,`OPCODE_ARITHI});
                 end
-                // andi
+                // andi(ok)
                 if(inst[`C_FUNC3_RANGE]==3'b100&&inst[`C_OP_RANGE]==2'b01&&inst[11:10]==2'b10)begin
                     //andi
-                    out_inst<={imm[11:0],rs1,3'b111,rd,`OPCODE_ARITHI};
+                    // $fwrite(file,"andi\n");
+                    out_inst<={{6{imm[5]}},imm[5:0],rs1,3'b111,rd,`OPCODE_ARITHI};//sext
+                    // $fwrite(file,"%h\n",{{6{imm[5]}},imm[5:0],rs1,3'b111,rd,`OPCODE_ARITHI});
                 end
                 // slli
                 if(inst[`C_FUNC3_RANGE]==3'b000&&inst[`C_OP_RANGE]==2'b10)begin
-                    out_inst<={7'b0,imm[4:0],rs1,3'b001,rd,`OPCODE_ARITHI};
+                    // $fwrite(file,"slli\n");
+                    out_inst<={7'b0,imm[4:0],rs1,3'b001,rd,`OPCODE_ARITHI};//unsigned
+                    // $fwrite(file,"%h\n",{7'b0,imm[4:0],rs1,3'b001,rd,`OPCODE_ARITHI});
                 end
                 // lwsp
                 if(inst[`C_FUNC3_RANGE]==3'b010&&inst[`C_OP_RANGE]==2'b10)begin
                     //lw
-                    out_inst<={imm[11:0],rs1,3'b010,rd,`OPCODE_L};
+                    // $fwrite(file,"lwsp\n");
+                    //04c12083
+                    out_inst<={imm[11:0],rs1,3'b010,rd,`OPCODE_L};//unsigned
+                    // $fwrite(file,"%h\n",{imm[11:0],rs1,3'b010,rd,`OPCODE_L});
                 end
-                // addi4spn
+                // addi4spn(ok)
                 if(inst[`C_FUNC3_RANGE]==3'b000&&inst[`C_OP_RANGE]==2'b00)begin
                     //addi
-                    out_inst<={imm[11:0],rs1,3'b000,rd,`OPCODE_ARITHI};
+                    // $fwrite(file,"addi4spn\n");
+                    //02010793
+                    out_inst<={{3{imm[9]}},imm[8:0],rs1,3'b000,rd,`OPCODE_ARITHI};//sext
+                    // $fwrite(file,"%h\n",{{3{imm[9]}},imm[8:0],rs1,3'b000,rd,`OPCODE_ARITHI});
                 end
                 // lw
                 if(inst[`C_FUNC3_RANGE]==3'b010&&inst[`C_OP_RANGE]==2'b00)begin
                     //lw
-                    out_inst<={imm[11:0],rs1,3'b010,rd,`OPCODE_L};
+                    // $fwrite(file,"lw\n");
+                    out_inst<={imm[11:0],rs1,3'b010,rd,`OPCODE_L};//unsigned
+                    // $fwrite(file,"%h\n",{imm[11:0],rs1,3'b010,rd,`OPCODE_L});
                 end
                 // sw
                 if(inst[`C_FUNC3_RANGE]==3'b110&&inst[`C_OP_RANGE]==2'b00)begin
                     //sw
-                    out_inst<={imm[11:5],rs2,rs1,3'b010,imm[4:0],`OPCODE_S};
+                    // $fwrite(file,"sw\n");
+                    //0007a403
+                    out_inst<={imm[11:5],rs2,rs1,3'b010,imm[4:0],`OPCODE_S};//unsigned
+                    // $fwrite(file,"%h\n",{imm[11:5],rs2,rs1,3'b010,imm[4:0],`OPCODE_S});
                 end
                 // beqz
                 if(inst[`C_FUNC3_RANGE]==3'b110&&inst[`C_OP_RANGE]==2'b01)begin
                     //beq
-                    out_inst<={imm[12],imm[10:5],rs2,rs1,3'b0,imm[4:1],imm[11],`OPCODE_B};
+                    // $fwrite(file,"beqz\n");
+                    out_inst<={{4{imm[8]}},imm[7:5],rs2,rs1,3'b0,imm[4:1],imm[8],`OPCODE_B};//sext
+                    // $fwrite(file,"%h\n",{{4{imm[8]}},imm[7:5],rs2,rs1,3'b0,imm[4:1],imm[8],`OPCODE_B});
                 end
-                // bnez
+                // bnez(ok)
                 if(inst[`C_FUNC3_RANGE]==3'b111&&inst[`C_OP_RANGE]==2'b01)begin
                     //bne
-                    out_inst<={imm[12],imm[10:5],rs2,rs1,3'b001,imm[4:1],imm[11],`OPCODE_B};
+                    // $fwrite(file,"bnez\n");
+                    out_inst<={{4{imm[8]}},imm[7:5],rs2,rs1,3'b001,imm[4:1],imm[8],`OPCODE_B};//sext
+                    // $fwrite(file,"%h\n",{{4{imm[8]}},imm[7:5],rs2,rs1,3'b001,imm[4:1],imm[8],`OPCODE_B});
                 end
-                // jal
+                // jal(ok)
                 if(inst[`C_FUNC3_RANGE]==3'b001&&inst[`C_OP_RANGE]==2'b01)begin
                     //jal
-                    out_inst<={imm[20],imm[10:1],imm[11],imm[19:12],rd,`OPCODE_JAL};
+                    // $fwrite(file,"jal\n");
+                    out_inst<={imm[11],imm[10:1],imm[11],{8{imm[11]}},rd,`OPCODE_JAL};//sext
+                    // $fwrite(file,"%h\n",{imm[11],imm[10:1],imm[11],{8{imm[11]}},rd,`OPCODE_JAL});
                 end
-                // j
+                // j(ok)
                 if(inst[`C_FUNC3_RANGE]==3'b101&&inst[`C_OP_RANGE]==2'b01)begin
                     //jal
-                    out_inst<={imm[20],imm[10:1],imm[11],imm[19:12],rd,`OPCODE_JAL};
+                    // $fwrite(file,"j\n");
+                    out_inst<={imm[11],imm[10:1],imm[11],{8{imm[11]}},rd,`OPCODE_JAL};//sext
+                    // $fwrite(file,"%h\n",{imm[11],imm[10:1],imm[11],{8{imm[11]}},rd,`OPCODE_JAL});
                 end 
             end
         end

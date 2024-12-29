@@ -83,7 +83,7 @@ module RegFile(
     always @(posedge clk)begin
         // if(is_commit)begin
         //     $fwrite(file, "%h\n",commit_pc);
-        //     for(i=13;i<14;i=i+1)begin
+        //     for(i=0;i<16;i=i+1)begin
         //         $fwrite(file, "(%b,%h,%h)|",busy[i],reg_data[i],reg_rob_id[i]);
         //     end
         //     $fwrite(file,"\n");
@@ -103,7 +103,7 @@ module RegFile(
                 if(commit_rd!=0&&busy[commit_rd]&&reg_rob_id[commit_rd]==commit_rob_id)begin
                     busy[commit_rd]<=0;
                     reg_rob_id[commit_rd]<=0;
-                    // $display("assign reg.%h %h",commit_rd,commit_data);
+                    // $fwrite(file,"assign reg.%h %h\n",commit_rd,commit_data);
                     // $fwrite(file, "inst %h assign reg.%h %h finish rob_id\n",commit_pc,commit_rd,commit_data);
                 end
             end

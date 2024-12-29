@@ -26,6 +26,7 @@ module RS(
     input wire [`DATA_WID] inst_imm,
     input wire [`DATA_WID] inst_off,
     input wire [`DATA_WID] inst_pc,
+    input wire inst_is_c_extend,
 
     //ALU update RS
     input wire alu_valid,
@@ -47,7 +48,8 @@ module RS(
     output reg [`DATA_WID] exe_imm,
     output reg [`DATA_WID] exe_off,
     output reg [`ADDR_WID] exe_pc,
-    output reg [`ROB_ID_WID] exe_rob_target
+    output reg [`ROB_ID_WID] exe_rob_target,
+    output reg exe_is_c_extend
 );
     //Reservation Station
     reg busy[`RS_SZ-1:0];
@@ -64,6 +66,7 @@ module RS(
     reg [`DATA_WID] rs_inst_imm[`RS_SZ-1:0];
     reg [`DATA_WID] rs_inst_off[`RS_SZ-1:0];
     reg [`DATA_WID] rs_inst_pc[`RS_SZ-1:0];
+    reg rs_is_c_extend[`RS_SZ-1:0];
 
     //mark blank position 
     reg [`RS_ID_WID] blank;
@@ -129,6 +132,7 @@ module RS(
                 rs_inst_imm[blank]<=inst_imm;
                 rs_inst_off[blank]<=inst_off;
                 rs_inst_pc[blank]<=inst_pc;
+                rs_is_c_extend[blank]<=inst_is_c_extend;
                 // if(inst_pc==1176)begin
                 //     $display("%b %h %h",inst_reg1_depend_rob,inst_reg1_data,inst_reg1_rob_id);
                 // end
@@ -145,6 +149,7 @@ module RS(
                 exe_off<=rs_inst_off[execute];
                 exe_pc<=rs_inst_pc[execute];
                 exe_rob_target<=rs_inst_rd_rob_id[execute];
+                exe_is_c_extend<=rs_is_c_extend[execute];
             end
             if(alu_valid)begin
                 for(i=0;i<`RS_SZ;i=i+1)begin

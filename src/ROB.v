@@ -96,9 +96,10 @@ module ROB(
     assign rs2_data=(is_call_rs2?(rob_busy[call_rs2_rob_id]?rob_rd_data[call_rs2_rob_id]:0):0);
     assign rd_rob_id=tail;
 
-    // integer file;
+    // integer cnt,file;
     // initial begin
-    //     file=$fopen("verilog.txt", "w");
+    //     cnt=1;
+    //     file=$fopen("ROB.txt", "w");
     // end
 
     integer i;
@@ -223,12 +224,13 @@ module ROB(
                 //         $display("commit JALR");
                 //     end
                 // endcase
-                // $display("commit pc = %h",rob_pc[head]);
+
+                //wrong at 000000d4
+                //2nd d4 is not jump,but i jump
+                // cnt<=cnt+1;
+                // $fwrite(file,"%h\n",rob_pc[head]);
 
                 // $fwrite(file,"commit pc = %h %h\n",rob_pc[head],head);
-                // if(rob_pc[head]==1176)begin
-                //     $fwrite(file,"wtf %b\n",rob_is_jump[head]);
-                // end
 
                 rob_busy[head]<=0;
                 commit_reg_pc<=rob_pc[head];
