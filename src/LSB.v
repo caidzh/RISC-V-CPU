@@ -111,12 +111,34 @@ module LSB(
     // end
 
     always @(posedge clk)begin
-        head<=nxt_head;
-        tail<=nxt_tail;
-        empty<=nxt_empty;
-        out_valid<=0;
-        if(rst||(rollback&&execute_pointer==`LSB_TOP))begin
+        if(rst)begin
             // $display("LSB rollback");
+            status<=IDLE;
+            head<=0;
+            tail<=0;
+            empty<=1;
+            call_valid<=0;
+            out_valid<=0;
+            execute_pointer<=`LSB_TOP;
+            for(i=0;i<`LSB_SZ;i=i+1)begin
+                busy[i]<=0;
+                lsb_opcode[i]<=0;
+                lsb_is_store[i]<=0;
+                lsb_func3[i]<=0;
+                lsb_rs1_busy[i]<=0;
+                lsb_rs1_id[i]<=0;
+                lsb_rs1_data[i]<=0;
+                lsb_rs1_rob_id[i]<=0;
+                lsb_rs2_busy[i]<=0;
+                lsb_rs2_id[i]<=0;
+                lsb_rs2_data[i]<=0;
+                lsb_rs2_rob_id[i]<=0;
+                lsb_imm[i]<=0;
+                lsb_rd_id[i]<=0;
+                lsb_rob_target[i]<=0;
+                executed[i]<=0;
+            end
+        end else if(rollback&&execute_pointer==`LSB_TOP)begin
             status<=IDLE;
             head<=0;
             tail<=0;
@@ -144,6 +166,9 @@ module LSB(
             end
         end else if(rollback)begin
             // $display("LSB rollback");
+            head<=nxt_head;
+            empty<=nxt_empty;
+            out_valid<=0;
             tail<=execute_pointer+1;
             for(i=0;i<`LSB_SZ;i=i+1)begin
                 if(!executed[i])
@@ -175,6 +200,10 @@ module LSB(
             //     $fwrite(file,"------\n");
             // end
             //decoder to LSB
+            head<=nxt_head;
+            tail<=nxt_tail;
+            empty<=nxt_empty;
+            out_valid<=0;
             if(inst_valid)begin
                 busy[tail]<=1;
                 lsb_opcode[tail]<=opcode;

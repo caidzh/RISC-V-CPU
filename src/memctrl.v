@@ -56,15 +56,18 @@ module MemCtrl(
 
     //1 cycle delay
     always @(posedge clk)begin
-        respond_valid<=0;
-        mem_data_valid<=0;
-        is_write<=0;
         if(rst)begin
             status<=IDLE;
             ready_sz<=0;
             target_sz<=0;
             store_data<=0;
+            respond_valid<=0;
+            mem_data_valid<=0;
+            is_write<=0;
         end else if(rdy)begin
+            respond_valid<=0;
+            mem_data_valid<=0;
+            is_write<=0;
             case(status)
                 IDLE:begin
                     if(mem_data_valid||respond_valid||rollback)begin
