@@ -148,6 +148,7 @@ wire [`DATA_WID] ROB_rs1_data;
 wire ROB_is_rs2_depend;
 wire [`DATA_WID] ROB_rs2_data;
 wire [`ROB_ID_WID] ROB_rd_rob_id;
+wire [`ROB_ID_WID] ROB_rob_head;
 
 //RS output
 wire rs_full;
@@ -329,7 +330,8 @@ LSB t_LSB(
   .respond_data(memctrl_respond_data),
   .out_valid(LSB_out_valid),
   .out_rob_id(LSB_out_rob_id),
-  .out_data(LSB_out_data)
+  .out_data(LSB_out_data),
+  .rob_head(ROB_rob_head)
 );
 
 MemCtrl t_MemCtrl(
@@ -424,7 +426,8 @@ ROB t_ROB(
   .rs1_data(ROB_rs1_data),
   .is_rs2_depend(ROB_is_rs2_depend),
   .rs2_data(ROB_rs2_data),
-  .rd_rob_id(ROB_rd_rob_id)
+  .rd_rob_id(ROB_rd_rob_id),
+  .rob_head(ROB_rob_head)
 );
 
 RS t_RS(

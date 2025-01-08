@@ -61,6 +61,7 @@ module MemCtrl(
             ready_sz<=0;
             target_sz<=0;
             store_data<=0;
+            store_addr<=0;
             respond_valid<=0;
             mem_data_valid<=0;
             is_write<=0;
@@ -199,6 +200,11 @@ module MemCtrl(
                     end
                 end
             endcase
+        end else begin
+            respond_valid<=0;
+            mem_data_valid<=0;
+            is_write<=0;
+            call_addr<=0;
         end
     end
 

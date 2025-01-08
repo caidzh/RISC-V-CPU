@@ -90,6 +90,12 @@ module IFetch(
         end
     endgenerate
 
+    //Branch Predictor
+    //index [9:2] -> 256 blocks
+    //pc with same index share the same result of branch predict
+    //method : if instructions in one block jumped more than 2 times -> jump
+    reg [2:0] tracker[`BP_BLK_NUM_SZ-1:0];
+
     //predict before transport in one cycle
     //must in combinational logic
     //whether jump or not
@@ -142,12 +148,6 @@ module IFetch(
             end
         end
     end
-
-    //Branch Predictor
-    //index [9:2] -> 256 blocks
-    //pc with same index share the same result of branch predict
-    //method : if instructions in one block jumped more than 2 times -> jump
-    reg [2:0] tracker[`BP_BLK_NUM_SZ-1:0];
 
     wire [`CACHE_INDEX_WID] rob_bp_index=pc[`CACHE_INDEX_RANGE];
 

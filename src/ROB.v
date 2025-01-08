@@ -62,7 +62,9 @@ module ROB(
     output wire [`DATA_WID] rs1_data,
     output wire is_rs2_depend,
     output wire [`DATA_WID] rs2_data,
-    output wire [`ROB_ID_WID] rd_rob_id
+    output wire [`ROB_ID_WID] rd_rob_id,
+
+    output wire [`ROB_ID_WID] rob_head
 );
 
     reg [`ROB_ID_WID] head;
@@ -95,6 +97,7 @@ module ROB(
     assign is_rs2_depend=(is_call_rs2?(rob_busy[call_rs2_rob_id]?rob_can_commit[call_rs2_rob_id]:0):0);
     assign rs2_data=(is_call_rs2?(rob_busy[call_rs2_rob_id]?rob_rd_data[call_rs2_rob_id]:0):0);
     assign rd_rob_id=tail;
+    assign rob_head=head;
 
     // integer cnt,file;
     // initial begin

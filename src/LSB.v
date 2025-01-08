@@ -57,7 +57,9 @@ module LSB(
     //LSB out (load)
     output reg out_valid,
     output reg [`ROB_ID_WID] out_rob_id,
-    output reg [`DATA_WID] out_data
+    output reg [`DATA_WID] out_data,
+
+    input wire [`ROB_ID_WID] rob_head
 );
     localparam IDLE=0,WAIT=1;
     reg status;
@@ -96,7 +98,7 @@ module LSB(
 
     wire [`DATA_WID] head_addr=rs1_data[head]+imm[head];
 
-    assign head_can_executed=(!empty&&!lsb_rs1_busy[head]&&!lsb_rs2_busy[head]&&(executed[head]||(!lsb_is_store[head]&&!rollback&&head_addr[17:16]!=2'b11)));
+    assign head_can_executed=(!empty&&!lsb_rs1_busy[head]&&!lsb_rs2_busy[head]&&(executed[head]||(!lsb_is_store[head]&&!rollback&&(head_addr[17:16]!=2'b11||lsb_rob_target[head]==rob_head))));
 
     always @(*)begin
         nxt_head=head+(status==WAIT&&respond_valid);
@@ -136,6 +138,7 @@ module LSB(
                 lsb_imm[i]<=0;
                 lsb_rd_id[i]<=0;
                 lsb_rob_target[i]<=0;
+                lsb_pc[i]<=0;
                 executed[i]<=0;
             end
         end else if(rollback&&execute_pointer==`LSB_TOP)begin
@@ -162,6 +165,7 @@ module LSB(
                 lsb_imm[i]<=0;
                 lsb_rd_id[i]<=0;
                 lsb_rob_target[i]<=0;
+                lsb_pc[i]<=0;
                 executed[i]<=0;
             end
         end else if(rollback)begin

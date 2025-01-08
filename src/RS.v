@@ -108,7 +108,6 @@ module RS(
             for(i=0;i<`RS_SZ;i=i+1)begin
                 busy[i]<=0;
             end
-            rs_full<=0;
             exe_valid<=0;
         end else if(rdy)begin
             exe_valid<=0;
