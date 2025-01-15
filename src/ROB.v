@@ -138,7 +138,7 @@ module ROB(
             pc_valid<=0;
             is_branch<=0;
 
-            // if(sz>0&&sz!=8)begin
+            // if(sz>0)begin
             //     $fwrite(file,"%d %d %d\n",head,tail,sz);
             //     for(i=0;i<`ROB_SZ;i=i+1)begin
             //         if(rob_busy[i])begin

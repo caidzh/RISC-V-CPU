@@ -107,6 +107,8 @@ module IFetch(
                 predict_pc=ifetch_pc+4;
             else
                 predict_pc=ifetch_pc+2;
+        end else begin
+            predict_pc=0;
         end
         // end else begin
         //     predict_pc=ifetch_pc;

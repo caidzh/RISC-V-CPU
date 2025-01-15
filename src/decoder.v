@@ -118,6 +118,13 @@ module Decoder(
         rd_valid=0;
         rs1_valid=0;
         rs2_valid=0;
+        rs1=0;
+        rs2=0;
+        rs1_rob_id=0;
+        rs2_rob_id=0;
+        rs1_data=0;
+        rs2_data=0;
+        rd=0;
         off=0;
         imm=0;
         is_branch=0;
@@ -172,7 +179,9 @@ module Decoder(
                 end
                 default:begin
                     rs1_valid=0;
+                    rs1=0;
                     rs1_depend_rob=0;
+                    rs1_rob_id=0;
                 end
             endcase
             case(inst[`OPCODE_RANGE])
@@ -184,12 +193,15 @@ module Decoder(
                 end
                 default:begin
                     rs2_valid=0;
+                    rs2=0;
                     rs2_depend_rob=0;
+                    rs2_rob_id=0;
                 end
             endcase
             case(inst[`OPCODE_RANGE])
                 `OPCODE_S,`OPCODE_B:begin
                     rd_valid=0;
+                    rd=0;
                 end
                 default:begin
                     rd_valid=1;
@@ -208,6 +220,7 @@ module Decoder(
                 rs1_data=lsb_data;
                 rs1_depend_rob=0;
             end else begin
+                rs1_data=0;
                 rs1_rob_id=regfile_rs1_rob_id;
             end
             if(!rs2_depend_rob)begin
@@ -222,6 +235,7 @@ module Decoder(
                 rs2_data=lsb_data;
                 rs2_depend_rob=0;
             end else begin
+                rs2_data=0;
                 rs2_rob_id=regfile_rs2_rob_id;
             end
             // if(inst[`OPCODE_RANGE]==`OPCODE_S)begin

@@ -35,6 +35,7 @@ module ALU(
 
     always @(*)begin
         if(opcode==`OPCODE_ARITH||opcode==`OPCODE_ARITHI)begin
+            is_jump=0;
             case(func3)
                 `FUNC3_ADD:data=(func1&&opcode==`OPCODE_ARITH)?operand1-operand2:operand1+operand2;
                 `FUNC3_XOR:data=operand1^operand2;
@@ -46,6 +47,7 @@ module ALU(
                 `FUNC3_SLTU:data=operand1<operand2;
             endcase
         end else begin
+            data=0;
             case(func3)
                 `FUNC3_BEQ:is_jump=operand1==operand2;
                 `FUNC3_BNE:is_jump=operand1!=operand2;

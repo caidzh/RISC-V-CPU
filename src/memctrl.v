@@ -164,7 +164,7 @@ module MemCtrl(
                     end
                 end
                 STORE:begin
-                    if(!io_buffer_full)begin
+                    if(store_addr[17:16]!=2'b11||!io_buffer_full)begin
                         is_write<=1;
                         case(ready_sz)
                             0:begin
