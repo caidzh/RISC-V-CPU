@@ -135,18 +135,18 @@ module MemCtrl(
                         store_data<=0;
                     end else begin
                         case(ready_sz)
-                        1:begin
-                            respond_data[7:0]<=ret_data;
-                        end
-                        2:begin
-                            respond_data[15:8]<=ret_data;
-                        end
-                        3:begin
-                            respond_data[23:16]<=ret_data;
-                        end
-                        4:begin
-                            respond_data[31:24]<=ret_data;
-                        end
+                            1:begin
+                                respond_data[7:0]<=ret_data;
+                            end
+                            2:begin
+                                respond_data[15:8]<=ret_data;
+                            end
+                            3:begin
+                                respond_data[23:16]<=ret_data;
+                            end
+                            4:begin
+                                respond_data[31:24]<=ret_data;
+                            end
                         endcase
                         if(ready_sz+1==target_sz)begin
                             ready_sz<=ready_sz+1;
